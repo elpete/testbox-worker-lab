@@ -2,13 +2,30 @@
   "testbox": {
     "repository": "https://github.com/Ortus-Solutions/TestBox.git",
     "commit": "a197c61faa9a5d7b104b32a95cd8c266c9270979",
-    "pr": 217
+    "pr": 217,
+    "integrity": {
+      "system/TestBox.cfc": "ac9a4b2b2076373bd6e092d93403aded14e40d4909aae6d2d3a928ad7cd14513",
+      "system/BaseSpec.cfc": "707f278adbbd485bbe22e38ac2d1bce17040504804b44bb77981b7b224d62dfa",
+      "system/parallel/Runner.cfc": "1cc77b62bd54c60c2811e96c067ddd8c2ed83baf3a277f85f0ca2cbf2db1f328",
+      "system/runners/HTMLRunner.cfm": "acb41a5fc4e625982e3a6b87d48a39ac907af07b8007399986f036a3d367e553",
+      "bx/tests/index.bxm": "59648c7fa1de7eda7864f1345c195914290a3aa8161c0287124584c33da3d7d0",
+      "system/parallel/ShardPlan.cfc": "503012864fa3e9ff892123ee3fcbd6f657a7240ee33d7418fe718d685dc51263",
+      "system/parallel/ProgressFile.cfc": "df95fb09871379133c91b022dab66614d8064bbbf5593f207384d1d911907e2d",
+      "system/parallel/Coordinator.cfc": "856544eaf57ca64dfe5e76621339d118377dae4a8439ef7047136d6a42ca9ced",
+      "bx/tests/assets/js/run.js": "25c452c2753aded5bfa11e01bc91f89abf6cafe34d5c6cc03064147cfa8aa2ab"
+    }
   },
   "cli": {
     "repository": "https://github.com/Ortus-Solutions/testbox-cli.git",
     "commit": "4e06f5c155302f9cce434886703cc2310cff6890",
     "pr": 28,
-    "runnerCompletionReference": "a5a4c072a3366aafa720d79b53fd50aaaeaf95ee"
+    "runnerCompletionReference": "a5a4c072a3366aafa720d79b53fd50aaaeaf95ee",
+    "integrity": {
+      "ModuleConfig.cfc": "90c0fda1edf1792828deb3a21432f2a500cf57192e8feae30b45e52d280fabed",
+      "commands/testbox/run.cfc": "03eba872cac1d6f16430237c1fec151088f497b2347cbd8be622b30d90f4d6e4",
+      "models/ParallelStreamingRenderer.cfc": "0fee434ac5e935d9e81f150fd2d78e8f56edb874d7c538b5098b80fbf90af2dd",
+      "commands/testbox/merge.cfc": "a651ab9066087c5cf83ba56486265ab332a889e59f8e4eb7f42a1c20e2fd12bc"
+    }
   },
   "boxlang": {
     "version": "1.18.0+66",
@@ -27,7 +44,6 @@
     "url": "https://downloads.ortussolutions.com/ortussolutions/boxlang-runtimes/boxlang-servlet/1.18.6/boxlang-servlet-1.18.6.zip",
     "sha256": "2a6a441c2905ee2cad19da7f4a89080246bc55cbd50370eb895e6807b78dd2fe"
   },
-  "commandboxSha256": "f8f5d31843724108f034a68d404d77a934d281108e1e21d510ae5b5a5db796f8",
   "modules": {
     "cbstreams": {
       "version": "2.2.0",

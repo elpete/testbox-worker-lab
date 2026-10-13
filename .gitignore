@@ -5,3 +5,4 @@ results/
 testbox
 .DS_Store
 .bootstrap/
+.qa/

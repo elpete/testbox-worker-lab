@@ -4,6 +4,9 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+env:
+  COMMANDBOX_HOME: ${{ github.workspace }}/.runtime/commandbox
+  BOXLANG_HOME: ${{ github.workspace }}/.runtime/tooling
 permissions:
   contents: read
 concurrency:
@@ -19,40 +22,42 @@ jobs:
         with:
           distribution: temurin
           java-version: "21.0.10"
-      - name: Bootstrap pinned BoxLang runtime
-        run: |
-          mkdir -p .bootstrap
-          curl --fail --location --retry 3 https://downloads.ortussolutions.com/ortussolutions/boxlang/1.18.0/boxlang-1.18.0.jar --output .bootstrap/boxlang.jar
-          echo "f9908fc0f2b699e8ed28c577b25bbf475f17dc14181bea1cf7f3672126f40379  .bootstrap/boxlang.jar" | sha256sum --check
-      - name: Fetch pinned dependencies
-        run: java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs setup
+      - uses: Ortus-Solutions/setup-commandbox@157ba183d42a6f1abfcbaa4c303072f95837f417
+        with:
+          version: "6.3.5"
+      - name: Prepare isolated CommandBox home
+        run: mkdir -p "$COMMANDBOX_HOME"
+      - name: Install pinned dependencies
+        run: box install
+      - name: Verify and wire pinned dependencies
+        run: box run-script setup
       - name: Verify BoxLang-only authored source
-        run: java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs audit
+        run: box run-script audit
       - name: Start loopback application
         run: |
-          java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs start
-          java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs wait-ready
+          box server start --noSaveSettings
+          box run-script ready
       - name: Real failure preservation contract
-        run: java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs contracts
+        run: box run-script contracts
       - name: Standard serial runner
         run: |
-          java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs cli testbox run runner=serial outputFile=results/serial.json
-          java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs verify-report results/serial.json
+          box testbox run runner=serial outputFile=results/serial.json
+          box run-script verify:serial
       - name: Two isolated JVMs
         run: |
-          java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs cli testbox run runner=parallel workers=2 interactive=false outputFile=results/parallel-2.json
-          java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs verify-report results/parallel-2.json
+          box testbox run runner=parallel workers=2 interactive=false outputFile=results/parallel-2.json
+          box run-script verify:two
       - name: Four isolated JVMs
         run: |
-          java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs cli testbox run runner=parallel workers=4 interactive=false outputFile=results/parallel-4.json
-          java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs verify-report results/parallel-4.json
+          box testbox run runner=parallel workers=4 interactive=false outputFile=results/parallel-4.json
+          box run-script verify:four
       - name: Browser comparison and native RUN
         run: |
-          java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs browser-setup
-          java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs browser
+          box run-script browser:setup
+          box run-script browser:test
       - name: Stop owned server
         if: always()
-        run: java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs stop
+        run: box server stop
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # release pin
         if: always()
         with:
@@ -72,19 +77,21 @@ jobs:
         with:
           distribution: temurin
           java-version: "21.0.10"
-      - name: Bootstrap pinned BoxLang runtime
-        run: |
-          mkdir -p .bootstrap
-          curl --fail --location --retry 3 https://downloads.ortussolutions.com/ortussolutions/boxlang/1.18.0/boxlang-1.18.0.jar --output .bootstrap/boxlang.jar
-          echo "f9908fc0f2b699e8ed28c577b25bbf475f17dc14181bea1cf7f3672126f40379  .bootstrap/boxlang.jar" | sha256sum --check
-      - run: java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs setup
+      - uses: Ortus-Solutions/setup-commandbox@157ba183d42a6f1abfcbaa4c303072f95837f417
+        with:
+          version: "6.3.5"
+      - name: Prepare isolated CommandBox home
+        run: mkdir -p "$COMMANDBOX_HOME"
+      - name: Install pinned dependencies
+        run: box install
+      - run: box run-script setup
       - name: Start loopback application
         run: |
-          java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs start
-          java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs wait-ready
+          box server start --noSaveSettings
+          box run-script ready
       - name: Execute assigned bundles
         run: >-
-          java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs cli testbox run runner=serial shard=${{ matrix.shard }}/4
+          box testbox run runner=serial shard=${{ matrix.shard }}/4
           shardRunId=${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}
           outputFile=results/shard-${{ matrix.shard }}.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -95,7 +102,7 @@ jobs:
           if-no-files-found: error
       - name: Stop owned server
         if: always()
-        run: java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs stop
+        run: box server stop
   merge:
     needs: shards
     if: always()
@@ -107,12 +114,14 @@ jobs:
         with:
           distribution: temurin
           java-version: "21.0.10"
-      - name: Bootstrap pinned BoxLang runtime
-        run: |
-          mkdir -p .bootstrap
-          curl --fail --location --retry 3 https://downloads.ortussolutions.com/ortussolutions/boxlang/1.18.0/boxlang-1.18.0.jar --output .bootstrap/boxlang.jar
-          echo "f9908fc0f2b699e8ed28c577b25bbf475f17dc14181bea1cf7f3672126f40379  .bootstrap/boxlang.jar" | sha256sum --check
-      - run: java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs setup
+      - uses: Ortus-Solutions/setup-commandbox@157ba183d42a6f1abfcbaa4c303072f95837f417
+        with:
+          version: "6.3.5"
+      - name: Prepare isolated CommandBox home
+        run: mkdir -p "$COMMANDBOX_HOME"
+      - name: Install pinned dependencies
+        run: box install
+      - run: box run-script setup
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           pattern: testbox-shard-*
@@ -120,9 +129,9 @@ jobs:
           merge-multiple: true
       - name: Verify full suite coverage and merge
         run: |
-          java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs cli testbox merge directory=results/shards outputFile=results/combined.json
-          java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs verify-report results/combined.json
-          java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs verify-merge
+          box testbox merge directory=results/shards outputFile=results/combined.json
+          box run-script verify:combined
+          box run-script verify:merge
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:

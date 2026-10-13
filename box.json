@@ -1,1 +1,62 @@
-{"name":"testbox-worker-lab","version":"0.1.0","private":true,"testbox":{"runner":[{"serial":"/tests/runner.bxm"},{"parallel":"/tests/runner.parallel.bxm"}]},"scripts":{"demo:start":"server start","demo:stop":"server stop","test:serial":"testbox run runner=serial outputFile=results/serial.json","test:parallel":"testbox run runner=parallel workers=4 interactive=false outputFile=results/parallel.json","test:shard1":"testbox run runner=serial shard=1/2 shardRunId=local-demo outputFile=results/shards/one.json","test:shard2":"testbox run runner=serial shard=2/2 shardRunId=local-demo outputFile=results/shards/two.json","test:merge":"testbox merge directory=results/shards outputFile=results/combined.json"}}
+{
+  "name": "testbox-worker-lab",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "testbox": "git+https://github.com/Ortus-Solutions/TestBox.git#a197c61faa9a5d7b104b32a95cd8c266c9270979",
+    "cbstreams": "2.2.0+2",
+    "cbMockData": "4.1.0+3",
+    "cbproxies": "1.8.0+9",
+    "globber": "3.1.5",
+    "bx-compat-cfml": "https://downloads.ortussolutions.com/ortussolutions/boxlang-modules/bx-compat-cfml/1.37.0/bx-compat-cfml-1.37.0.zip",
+    "boxlang-1.18.0": "jar:https://downloads.ortussolutions.com/ortussolutions/boxlang/1.18.0/boxlang-1.18.0.jar"
+  },
+  "devDependencies": {
+    "commandbox-boxlang": "https://downloads.ortussolutions.com/ortussolutions/commandbox-modules/commandbox-boxlang/1.22.0/commandbox-boxlang-1.22.0.zip",
+    "testbox-cli": "git+https://github.com/Ortus-Solutions/testbox-cli.git#4e06f5c155302f9cce434886703cc2310cff6890"
+  },
+  "installPaths": {
+    "testbox": ".deps/testbox/",
+    "cbstreams": ".deps/testbox/system/modules/cbstreams/",
+    "cbMockData": ".deps/testbox/system/modules/cbMockData/",
+    "cbproxies": ".deps/testbox/system/modules/cbstreams/modules/cbproxies/",
+    "globber": ".deps/testbox/system/modules/globber/",
+    "bx-compat-cfml": ".runtime/boxlang/modules/bx-compat-cfml/",
+    "boxlang-1.18.0": ".deps/boxlang-runtime/"
+  },
+  "testbox": {
+    "runner": [
+      {
+        "serial": "/tests/runner.bxm"
+      },
+      {
+        "parallel": "/tests/runner.parallel.bxm"
+      }
+    ]
+  },
+  "scripts": {
+    "setup": [
+      "config set modules.commandbox-boxlang.CLIBoxLangVersion=1.18.0",
+      "boxlang cli scripts/lab.bxs setup"
+    ],
+    "demo:start": "server start",
+    "demo:stop": "server stop",
+    "ready": "boxlang cli scripts/lab.bxs wait-ready",
+    "audit": "boxlang cli scripts/lab.bxs audit",
+    "smoke": "boxlang cli scripts/lab.bxs smoke",
+    "contracts": "boxlang cli scripts/lab.bxs contracts",
+    "verify:serial": "boxlang cli scripts/lab.bxs verify-report results/serial.json",
+    "verify:two": "boxlang cli scripts/lab.bxs verify-report results/parallel-2.json",
+    "verify:four": "boxlang cli scripts/lab.bxs verify-report results/parallel-4.json",
+    "verify:combined": "boxlang cli scripts/lab.bxs verify-report results/combined.json",
+    "verify:merge": "boxlang cli scripts/lab.bxs verify-merge",
+    "browser:setup": "boxlang cli scripts/lab.bxs browser-setup",
+    "browser:test": "boxlang cli scripts/lab.bxs browser",
+    "test:serial": "testbox run runner=serial outputFile=results/serial.json",
+    "test:two": "testbox run runner=parallel workers=2 interactive=false outputFile=results/parallel-2.json",
+    "test:four": "testbox run runner=parallel workers=4 interactive=false outputFile=results/parallel-4.json",
+    "test:shard1": "testbox run runner=serial shard=1/2 shardRunId=local-demo outputFile=results/shards/one.json",
+    "test:shard2": "testbox run runner=serial shard=2/2 shardRunId=local-demo outputFile=results/shards/two.json",
+    "test:merge": "testbox merge directory=results/shards outputFile=results/combined.json"
+  }
+}

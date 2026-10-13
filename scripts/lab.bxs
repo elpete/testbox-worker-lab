@@ -1,7 +1,7 @@
 /** Single BoxLang entry point; the script path is the first CLI positional. */
 args = cliGetArgs().positionals
 args.deleteAt( 1 )
-if ( !args.len() ) throw( message = "Choose setup, start, stop, cli, audit, smoke, verify-report, verify-merge, contracts, browser-setup or browser." )
+if ( !args.len() ) throw( message = "Choose setup, audit, smoke, verify-report, verify-merge, contracts, browser-setup or browser." )
 commandName = args[ 1 ]
 args.deleteAt( 1 )
 for ( key in cliGetArgs().options ) {

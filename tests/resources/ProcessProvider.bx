@@ -1,5 +1,9 @@
 /** A real child JVM per worker. No HTTP requests or simulated reports. */
 class extends="testbox.system.parallel.WorkerProvider" {
+    /** This provider owns environments directly; it does not use the optional callback adapter constructor. */
+    function init() {
+        return this
+    }
     function prepareRun( required struct context ) {
         variables.root = expandPath( "/" )
         variables.handles = []

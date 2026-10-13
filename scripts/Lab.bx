@@ -1,9 +1,8 @@
-/** Native BoxLang setup and verification. Java interop supplies process/ZIP primitives. */
+/** BoxLang setup and verification invoked through installed CommandBox. */
 class {
     function init() {
         variables.root = createObject( "java", "java.io.File" ).init( getCurrentTemplatePath() ).getParentFile().getParentFile().getCanonicalPath() & "/"
         variables.pins = JSONDeserialize( fileRead( variables.root & "dependencies.json" ) )
-        variables.javaBin = createObject( "java", "java.lang.System" ).getProperty( "java.home" ) & "/bin/java"
         return this
     }
 
@@ -27,53 +26,20 @@ class {
         if ( result.exitCode != 0 ) throw( message = "Command failed with exit code " & result.exitCode & ": " & args[ 1 ] )
     }
 
-    /** CommandBox always uses the checkout-local home, never the user's installation. */
-    struct function commandBox( required array args, boolean capture = false ) {
-        var commandArgs = [ variables.root & ".runtime/bin/box" ]
+    /** Invoke the already-installed CommandBox binary in the explicitly isolated home. */
+    struct function commandBox( required array args, boolean capture = false, struct environment = {} ) {
+        var expected = variables.root & ".runtime/commandbox"
+        var configured = getSystemSetting( "COMMANDBOX_HOME", "" )
+        if ( !len( configured ) || createObject( "java", "java.io.File" ).init( configured ).getCanonicalPath() != createObject( "java", "java.io.File" ).init( expected ).getCanonicalPath() ) throw( message="Set COMMANDBOX_HOME to this checkout's .runtime/commandbox before using box install or box run-script." )
+        var commandArgs = [ getSystemSetting( "LAB_COMMANDBOX_BINARY", "box" ) ]
         commandArgs.append( args, true )
-        return execute( commandArgs, { COMMANDBOX_HOME: variables.root & ".runtime/commandbox" }, capture )
+        var settings = structCopy( environment )
+        settings.COMMANDBOX_HOME = configured
+        return execute( commandArgs, settings, capture )
     }
 
     function ensureDirectory( required string path ) {
         if ( !directoryExists( path ) ) directoryCreate( path, true )
-    }
-
-    /** Download and verify binary content before using it. */
-    function fetchArchive( required string address, required string target, required string digest ) {
-        ensureDirectory( getDirectoryFromPath( target ) )
-        if ( !fileExists( target ) ) {
-            println( "Downloading " & address )
-            var input = createObject( "java", "java.net.URI" ).init( address ).toURL().openStream()
-            var output = createObject( "java", "java.io.FileOutputStream" ).init( target )
-            try { input.transferTo( output ) } finally { input.close(); output.close() }
-        }
-        if ( lCase( hash( fileReadBinary( target ), "SHA-256" ) ) != digest ) {
-            throw( message = "Checksum mismatch: " & target & ". Remove only that cached archive and retry." )
-        }
-    }
-
-    /** Extract ZIP entries with optional single root stripping and traversal checks. */
-    function extractArchive( required string archive, required string target, boolean stripRoot = false ) {
-        ensureDirectory( target )
-        var destination = createObject( "java", "java.io.File" ).init( target ).getCanonicalPath()
-        var zipped = createObject( "java", "java.util.zip.ZipFile" ).init( archive )
-        try {
-            var entries = zipped.entries()
-            while ( entries.hasMoreElements() ) {
-                var entry = entries.nextElement()
-                var name = entry.getName()
-                if ( stripRoot ) name = reReplace( name, "^[^/]+/", "" )
-                if ( !len( name ) ) continue
-                var file = createObject( "java", "java.io.File" ).init( destination & "/" & name )
-                var canonical = file.getCanonicalPath()
-                if ( !canonical.startsWith( destination & "/" ) ) throw( message="Unsafe archive entry: " & name )
-                if ( entry.isDirectory() ) { ensureDirectory( canonical ); continue }
-                ensureDirectory( file.getParent() )
-                var input = zipped.getInputStream( entry )
-                var output = createObject( "java", "java.io.FileOutputStream" ).init( file )
-                try { input.transferTo( output ) } finally { input.close(); output.close() }
-            }
-        } finally { zipped.close() }
     }
 
     /** Replace only an existing symlink; refuse to overwrite a real directory. */
@@ -86,73 +52,33 @@ class {
         files.createSymbolicLink( dest, source )
     }
 
-    /** Reproduce exact upstream source and checksummed runtimes/modules. */
+    /** Validate pinned CommandBox packages and wire the application-owned mappings. */
     function setup() {
-        ensureDirectory( variables.root & ".deps" )
-        for ( var item in [ {key:"testbox", name:"testbox"}, {key:"cli", name:"testbox-cli"} ] ) {
-            var dep = variables.root & ".deps/" & item.name
-            var pin = variables.pins[ item.key ]
-            if ( !directoryExists( dep ) ) checked( [ "git", "clone", pin.repository, dep ] )
-            var revision = execute( [ "git", "-C", dep, "rev-parse", "HEAD" ], {}, true )
-            if ( trim( revision.output ) != pin.commit ) {
-                var dirty = execute( [ "git", "-C", dep, "status", "--porcelain" ], {}, true )
-                if ( len( trim( dirty.output ) ) ) throw( message="Dirty dependency: " & dep )
-                checked( [ "git", "-C", dep, "fetch", "origin", pin.commit ] )
-                checked( [ "git", "-C", dep, "checkout", "--detach", pin.commit ] )
+        var home = getSystemSetting( "COMMANDBOX_HOME", "" )
+        // Validation also prevents modifying the user's normal CommandBox CLI.
+        if ( commandBox( [ "version" ] ).exitCode != 0 ) throw( message="Installed CommandBox is unavailable" )
+        var cliRoot = home & "/cfml/modules/testbox-cli"
+        for ( var item in [ {key:"testbox",dir:variables.root & ".deps/testbox"}, {key:"cli",dir:cliRoot} ] ) {
+            for ( var path in variables.pins[ item.key ].integrity ) {
+                var fullPath = item.dir & "/" & path
+                if ( !fileExists( fullPath ) || lCase( hash( fileReadBinary( fullPath ), "SHA-256" ) ) != variables.pins[ item.key ].integrity[ path ] ) throw( message="Pinned source differs: " & fullPath & ". Run box install --force in the isolated home." )
             }
         }
         makeLink( variables.root & ".deps/testbox", variables.root & "testbox" )
-        makeLink( variables.root & ".deps/testbox", variables.root & ".deps/testbox-cli/testbox" )
-        fetchArchive( variables.pins.boxlang.url, variables.root & ".deps/boxlang-1.18.0.jar", variables.pins.boxlang.sha256 )
-        fetchArchive( variables.pins.compat.url, variables.root & ".deps/bx-compat-cfml.zip", variables.pins.compat.sha256 )
+        var cliFramework = cliRoot & "/testbox"
+        var cliFrameworkPath = createObject( "java", "java.io.File" ).init( cliFramework ).toPath()
+        if ( directoryExists( cliFramework ) && !createObject( "java", "java.nio.file.Files" ).isSymbolicLink( cliFrameworkPath ) ) directoryDelete( cliFramework, true )
+        makeLink( variables.root & ".deps/testbox", cliFramework )
+        var installedJar = variables.root & ".deps/boxlang-runtime/boxlang-1.18.0.jar"
+        if ( !fileExists( installedJar ) || lCase( hash( fileReadBinary( installedJar ), "SHA-256" ) ) != variables.pins.boxlang.sha256 ) throw( message="Pinned worker runtime missing or changed; run box install." )
+        if ( !fileExists( variables.root & ".deps/boxlang-1.18.0.jar" ) ) fileCopy( installedJar, variables.root & ".deps/boxlang-1.18.0.jar" )
+        if ( lCase( hash( fileReadBinary( variables.root & ".deps/boxlang-1.18.0.jar" ), "SHA-256" ) ) != variables.pins.boxlang.sha256 ) throw( message="Worker runtime copy differs from the pinned package" )
         var compat = variables.root & ".runtime/boxlang/modules/bx-compat-cfml"
-        if ( !directoryExists( compat ) ) extractArchive( variables.root & ".deps/bx-compat-cfml.zip", compat )
-        // Tool runtime remains separate from workers; browser modules never get copied into worker JVMs.
+        if ( !directoryExists( compat ) ) throw( message="CFML compatibility module missing; run box install." )
         var toolingCompat = variables.root & ".runtime/tooling/modules/bx-compat-cfml"
         if ( !directoryExists( toolingCompat ) ) directoryCopy( compat, toolingCompat, true )
-        var archive = variables.root & ".deps/commandbox.zip"
-        fetchArchive( "https://downloads.ortussolutions.com/ortussolutions/commandbox/" & variables.pins.commandbox & "/commandbox-bin-" & variables.pins.commandbox & ".zip", archive, variables.pins.commandboxSha256 )
-        var binary = variables.root & ".runtime/bin/box"
-        if ( !fileExists( binary ) ) extractArchive( archive, variables.root & ".runtime/bin" )
-        createObject( "java", "java.io.File" ).init( binary ).setExecutable( true )
-        var home = variables.root & ".runtime/commandbox"
-        ensureDirectory( home )
-        var module = home & "/cfml/modules/testbox-cli"
-        var modulePath = createObject( "java", "java.io.File" ).init( module ).toPath()
-        if ( createObject( "java", "java.nio.file.Files" ).isSymbolicLink( modulePath ) ) createObject( "java", "java.nio.file.Files" ).delete( modulePath )
-        // Initialize before linking the development modules: bootstrap can replace bundled files.
-        var boot = commandBox( [ "version" ] )
-        if ( boot.exitCode != 0 ) throw( message="Private CommandBox bootstrap failed" )
-        if ( directoryExists( module ) ) {
-            if ( directoryExists( home & "/stock-testbox-cli" ) ) directoryDelete( home & "/stock-testbox-cli", true )
-            directoryRename( module, home & "/stock-testbox-cli" )
-        }
-        makeLink( variables.root & ".deps/testbox-cli", module )
-        fetchArchive( variables.pins.commandboxModule.url, variables.root & ".deps/commandbox-boxlang.zip", variables.pins.commandboxModule.sha256 )
-        if ( !directoryExists( home & "/cfml/modules/commandbox-boxlang" ) ) extractArchive( variables.root & ".deps/commandbox-boxlang.zip", home & "/cfml/modules/commandbox-boxlang" )
-        for ( var name in variables.pins.modules ) {
-            var pin = variables.pins.modules[ name ]
-            var archive = variables.root & ".deps/" & name & ".zip"
-            fetchArchive( pin.url, archive, pin.sha256 )
-            var target = variables.root & ".deps/testbox/system/modules/" & name
-            if ( name == "cbproxies" ) target = variables.root & ".deps/testbox/system/modules/cbstreams/modules/cbproxies"
-            if ( directoryExists( target ) ) directoryDelete( target, true )
-            extractArchive( archive, target, name == "globber" )
-        }
-        archive = variables.root & ".deps/boxlang-servlet.zip"
-        fetchArchive( variables.pins.servlet.url, archive, variables.pins.servlet.sha256 )
-        var engine = variables.root & ".engine/boxlang"
-        if ( !directoryExists( engine & "/WEB-INF" ) ) {
-            var staging = variables.root & ".deps/servlet"
-            extractArchive( archive, staging )
-            var wars = directoryList( staging, false, "path", "*.war" )
-            if ( wars.len() != 1 ) throw( message="Expected one servlet WAR" )
-            extractArchive( wars[ 1 ], engine )
-        }
-        var engineCompat = engine & "/WEB-INF/boxlang/modules/bx-compat-cfml"
-        if ( !directoryExists( engineCompat ) ) directoryCopy( compat, engineCompat, true )
-        for ( var name in [ "testbox", "testbox-cli" ] ) checked( [ "git", "-C", variables.root & ".deps/" & name, "diff", "--exit-code" ] )
-        println( "Ready. Use lab.bxs start, cli, verify-report, contracts, verify-merge or browser." )
+        fileWrite( variables.root & ".runtime/setup.json", JSONSerialize( {testbox:variables.pins.testbox.commit, cli:variables.pins.cli.commit, sourceIntegrityVerified:true, installedCommandBox:true} ) )
+        println( "Ready: box server start; box testbox run runner=parallel workers=4" )
     }
 
     /** Verify every real application bundle and its result totals. */
@@ -248,33 +174,22 @@ class {
         if ( action == "verify-report" ) { if ( args.len() != 1 ) throw( message="verify-report requires a JSON report path" ); checkReport( args[ 1 ] ); return }
         if ( action == "verify-merge" ) { verifyMerge(); return }
         if ( action == "wait-ready" ) { waitReady(); return }
-        if ( action == "start" ) {
-            var options = [ "server", "start", "javaHome=" & createObject( "java", "java.lang.System" ).getProperty( "java.home" ), "--noSaveSettings" ]
-            options.append( args, true )
-            var result = commandBox( options )
-            if ( result.exitCode != 0 ) throw( message="Server start failed" )
-            waitReady(); return
-        }
-        if ( action == "stop" || action == "cli" ) {
-            var result = commandBox( action == "stop" ? [ "server", "stop" ] : args )
-            createObject( "java", "java.lang.System" ).exit( javaCast( "int", result.exitCode ) )
-        }
         if ( action == "contracts" ) { include "../tests/contracts.bxs"; return }
         if ( action == "browser-setup" ) { browserSetup(); return }
         if ( action == "browser" ) {
-            checked( [ variables.javaBin, "-cp", variables.root & ".deps/boxlang-1.18.0.jar", "ortus.boxlang.runtime.BoxRunner", "--bx-home", variables.root & ".runtime/tooling", variables.root & "scripts/lab.bxs", "browser-run" ], { BX_PLAYWRIGHT_HOME: variables.root & ".runtime/playwright" } )
+            if ( commandBox( [ "boxlang", "cli", variables.root & "scripts/lab.bxs", "browser-run" ], false, { BX_PLAYWRIGHT_HOME: variables.root & ".runtime/playwright" } ).exitCode != 0 ) throw( message="BoxLang browser verification failed" )
             return
         }
         if ( action == "browser-run" ) { include "browser.bxs"; return }
         throw( message="Unknown action: " & action )
     }
 
-    /** Download the content-pinned browser module into the tooling runtime only. */
+    /** CommandBox installs the browser module and launches its native BoxLang installer. */
     function browserSetup() {
-        fetchArchive( variables.pins.browserModule.url, variables.root & ".deps/bx-playwright.zip", variables.pins.browserModule.sha256 )
-        var target = variables.root & ".runtime/tooling/modules/bx-playwright"
-        if ( !directoryExists( target ) ) extractArchive( variables.root & ".deps/bx-playwright.zip", target )
-        // A fresh runtime loads newly installed modules before running the native module installer.
-        checked( [ variables.javaBin, "-cp", variables.root & ".deps/boxlang-1.18.0.jar", "ortus.boxlang.runtime.BoxRunner", "--bx-home", variables.root & ".runtime/tooling", "module:bxplaywright", "install", "chromium", "--with-deps" ], { BX_PLAYWRIGHT_HOME: variables.root & ".runtime/playwright" } )
+        var modules = createObject( "java", "ortus.boxlang.runtime.BoxRuntime" ).getInstance().getRuntimeHome().toString() & "/modules"
+        if ( !directoryExists( modules & "/bx-playwright" ) ) {
+            if ( commandBox( [ "install", "ID=" & variables.pins.browserModule.url, "directory=" & modules, "save=false", "production=true" ] ).exitCode != 0 ) throw( message="CommandBox browser-module installation failed" )
+        }
+        if ( commandBox( [ "boxlang", "cli", "module:bxplaywright", "install", "chromium", "--with-deps" ], false, { BX_PLAYWRIGHT_HOME: variables.root & ".runtime/playwright" } ).exitCode != 0 ) throw( message="Browser installation failed" )
     }
 }
