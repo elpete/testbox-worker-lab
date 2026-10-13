@@ -1,0 +1,58 @@
+{
+  "testbox": {
+    "repository": "https://github.com/Ortus-Solutions/TestBox.git",
+    "commit": "a197c61faa9a5d7b104b32a95cd8c266c9270979",
+    "pr": 217
+  },
+  "cli": {
+    "repository": "https://github.com/Ortus-Solutions/testbox-cli.git",
+    "commit": "4e06f5c155302f9cce434886703cc2310cff6890",
+    "pr": 28,
+    "runnerCompletionReference": "a5a4c072a3366aafa720d79b53fd50aaaeaf95ee"
+  },
+  "boxlang": {
+    "version": "1.18.0+66",
+    "url": "https://downloads.ortussolutions.com/ortussolutions/boxlang/1.18.0/boxlang-1.18.0.jar",
+    "sha256": "f9908fc0f2b699e8ed28c577b25bbf475f17dc14181bea1cf7f3672126f40379"
+  },
+  "compat": {
+    "version": "1.37.0",
+    "url": "https://downloads.ortussolutions.com/ortussolutions/boxlang-modules/bx-compat-cfml/1.37.0/bx-compat-cfml-1.37.0.zip",
+    "sha256": "d25dbdef79a5f2ac760322d875f5cda08184630ca6b8dbc103ea0f96b765034a"
+  },
+  "commandbox": "6.3.5",
+  "commandboxBoxlang": "1.22.0",
+  "servlet": {
+    "version": "1.18.6+62",
+    "url": "https://downloads.ortussolutions.com/ortussolutions/boxlang-runtimes/boxlang-servlet/1.18.6/boxlang-servlet-1.18.6.zip",
+    "sha256": "2a6a441c2905ee2cad19da7f4a89080246bc55cbd50370eb895e6807b78dd2fe"
+  },
+  "commandboxSha256": "f8f5d31843724108f034a68d404d77a934d281108e1e21d510ae5b5a5db796f8",
+  "modules": {
+    "cbstreams": {
+      "version": "2.2.0",
+      "url": "https://downloads.ortussolutions.com/ortussolutions/coldbox-modules/cbstreams/2.2.0/cbstreams-2.2.0.zip",
+      "sha256": "eddcc28c9bf2b8cadd53cf61dd8001519bba013cce3e85f2b340e8b826c4abe1"
+    },
+    "cbMockData": {
+      "version": "4.1.0",
+      "url": "https://downloads.ortussolutions.com/ortussolutions/coldbox-modules/cbMockData/4.1.0/cbMockData-4.1.0.zip",
+      "sha256": "70fb5aeb061f0ef59194ecb139ced86797aefb29159f1bba72148fe897fe8b54"
+    },
+    "cbproxies": {
+      "version": "1.8.0",
+      "url": "https://downloads.ortussolutions.com/ortussolutions/coldbox-modules/cbproxies/1.8.0/cbproxies-1.8.0.zip",
+      "sha256": "e4734151fc10dd1c08dd569c1ccdc3d159b5d63279d6b473646485d9f716d7bb"
+    },
+    "globber": {
+      "version": "3.1.5",
+      "url": "https://codeload.github.com/Ortus-Solutions/globber/zip/52ee486eeffba59564ddf59b2b88c659c1608793",
+      "sha256": "e81d96a4bdcd2b692f2066f635691a66333f7a55a5582d4207b5d91f6f9fcf20"
+    }
+  },
+  "commandboxModule": {
+    "version": "1.22.0",
+    "url": "https://downloads.ortussolutions.com/ortussolutions/commandbox-modules/commandbox-boxlang/1.22.0/commandbox-boxlang-1.22.0.zip",
+    "sha256": "180c1de5db634df205d0d3654451ec7bcf53599d76d3c276a7e2b8538d351794"
+  }
+}

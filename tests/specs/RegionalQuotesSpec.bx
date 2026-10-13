@@ -1,0 +1,22 @@
+class extends="tests.resources.ParcelSpec" {
+    function run() {
+        describe( "RegionalQuotes", () => {
+            it( "uses the regional base", () => {
+                pauseForDemo()
+                expect( dispatch.quote( 500, "regional" ) ).toBe( 775 )
+            } )
+            it( "prices two units", () => {
+                pauseForDemo()
+                expect( dispatch.quote( 1000, "regional" ) ).toBe( 900 )
+            } )
+            it( "rounds three units", () => {
+                pauseForDemo()
+                expect( dispatch.quote( 1001, "regional" ) ).toBe( 1025 )
+            } )
+            it( "prices the regional maximum", () => {
+                pauseForDemo()
+                expect( dispatch.quote( 20000, "regional" ) ).toBe( 5650 )
+            } )
+        } )
+    }
+}

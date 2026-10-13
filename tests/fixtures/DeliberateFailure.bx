@@ -1,0 +1,8 @@
+/** Only discovered by the explicit contract harness, never the application suite. */
+class extends="testbox.system.BaseSpec" {
+    function run() {
+        describe( "Merge failure preservation", () => {
+            it( "deliberately fails for the contract", () => expect( 1 ).toBe( 2 ) )
+        } )
+    }
+}

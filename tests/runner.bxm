@@ -1,0 +1,9 @@
+<bx:script>
+url.directory = "tests.specs"
+url.coverageEnabled = false
+</bx:script>
+<bx:if ( url.streaming ?: false ) && !( url.dryRun ?: false )>
+    <bx:include template="/testbox/system/runners/StreamingRunner.cfm">
+<bx:else>
+    <bx:include template="/testbox/system/runners/HTMLRunner.cfm">
+</bx:if>

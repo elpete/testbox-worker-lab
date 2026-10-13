@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta
+      name="description"
+      content="Run real TestBox tests across isolated workers, CommandBox and CI shards."
+    />
+    <title>Worker Lab · Parcel Dispatch</title>
+    <link rel="stylesheet" href="site.css" />
+    <script src="site.js" defer></script>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/"
+        >Worker Lab<span class="brand-mark" aria-hidden="true">↗</span></a
+      >
+      <nav aria-label="Main">
+        <a href="tests/runner.parallel.bxm">RUN IDE</a
+        ><a href="#walkthrough">Walkthrough</a
+        ><a href="https://github.com/elpete/testbox-worker-lab">Source ↗</a>
+      </nav>
+    </header>
+    <main>
+      <section class="intro">
+        <div>
+          <h1>One workload.<br />More workers.</h1>
+          <p>
+            Eight parcel dispatch bundles. Real assertions, private JVMs, and
+            progress you can follow. Explore Eric’s TestBox worker APIs from the
+            browser, terminal, and CI.
+          </p>
+        </div>
+        <div class="workload">
+          <div>
+            <strong>8</strong> bundles <span>/</span> <strong>32</strong> checks
+          </div>
+          <p>
+            Quotes, express fees, weight guards, and manifest files.<br />A
+            deliberately paced workload, not a production benchmark.
+          </p>
+        </div>
+      </section>
+      <section class="lab" aria-labelledby="lab-title">
+        <div class="toolbar">
+          <h2 id="lab-title">Parcel dispatch</h2>
+          <div class="controls">
+            <label for="workers">Workers</label
+            ><select id="workers">
+              <option>1</option>
+              <option>2</option>
+              <option selected>4</option>
+              <option>8</option></select
+            ><button id="run">Run comparison</button
+            ><button id="stop" class="secondary" disabled>Stop</button>
+          </div>
+        </div>
+        <div class="status">
+          <span id="status" role="status" aria-live="polite"
+            >Ready. No measurements yet.</span
+          ><span id="clock">—</span>
+        </div>
+        <div id="timeline" class="timeline" aria-label="Live worker activity">
+          <div class="empty">
+            No measurements yet.<small
+              >Run a serial baseline, then your selected worker count.</small
+            >
+          </div>
+        </div>
+        <div class="results-header">
+          <h3>Measured results</h3>
+          <button id="export" class="text-button" disabled>
+            Download JSON ↓
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Mode</th>
+                <th scope="col">Workers</th>
+                <th scope="col">Passed</th>
+                <th scope="col">Elapsed</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Serial baseline</th>
+                <td>1</td>
+                <td id="serial-pass">—</td>
+                <td id="serial-time">—</td>
+              </tr>
+              <tr>
+                <th scope="row">Isolated workers</th>
+                <td id="parallel-workers">—</td>
+                <td id="parallel-pass">—</td>
+                <td id="parallel-time">—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p id="comparison" class="note">
+          Elapsed includes worker startup and cleanup. JVM compilation can
+          dominate this small workload. Repeat warmed runs before drawing
+          conclusions.
+        </p>
+        <details>
+          <summary>What actually runs?</summary>
+          <p>
+            The baseline uses the standard TestBox HTML runner. The worker run
+            uses the same <code>Runner</code>, <code>Coordinator</code>, and
+            <code>ProgressFile</code> APIs as RUN and the CLI. A demo-owned
+            provider launches one BoxLang JVM per worker. No results or worker
+            events are simulated. Each spec includes a configurable 300 ms
+            demonstration pause.
+          </p>
+          <pre id="events" aria-label="Recent native events"></pre>
+        </details>
+      </section>
+      <section class="paths" aria-label="Integration pathways">
+        <article>
+          <span class="number">01</span>
+          <div>
+            <h3>TestBox RUN</h3>
+            <p>
+              Open the native IDE, choose Workers, and run the same parcel
+              tests.
+            </p>
+            <a class="path-link" href="tests/runner.parallel.bxm"
+              >Open RUN IDE ↗</a
+            ><code>/tests/runner.parallel.bxm</code>
+          </div>
+        </article>
+        <article>
+          <span class="number">02</span>
+          <div>
+            <h3>CommandBox CLI</h3>
+            <p>
+              Watch permanent progress lines, then inspect the worker timing
+              table.
+            </p>
+            <code>scripts/box testbox run runner=parallel workers=4</code>
+          </div>
+        </article>
+        <article>
+          <span class="number">03</span>
+          <div>
+            <h3>GitHub Actions</h3>
+            <p>
+              Four independent machines. Upload every report and verify the
+              complete selection.
+            </p>
+            <code>scripts/box testbox run runner=serial shard=1/4</code
+            ><a
+              class="path-link"
+              href="https://github.com/elpete/testbox-worker-lab/actions"
+              >Workflow & artifacts ↗</a
+            >
+          </div>
+        </article>
+      </section>
+      <section id="walkthrough" class="walkthrough">
+        <div>
+          <h2>Show it in five minutes.</h2>
+          <p>
+            Same workload. Three interfaces.<br />Keep the measured limits
+            visible.
+          </p>
+        </div>
+        <ol>
+          <li>
+            <strong>Start in RUN.</strong> Discover all eight bundles. Choose
+            two workers and Run All. Follow discovery, specs, and retained final
+            worker rows.
+          </li>
+          <li>
+            <strong>Compare locally.</strong> Run this page’s comparison at four
+            workers. Both paths must report 32 passes. Discuss startup cost and
+            the slowest bundle.
+          </li>
+          <li>
+            <strong>Switch to the terminal.</strong> Run the CLI command above
+            with <code>interactive=false</code>. Show native progress and the
+            timing table.
+          </li>
+          <li>
+            <strong>Finish in CI.</strong> Open the four shard jobs and the
+            combined JSON artifact. Explain why a missing or duplicate report
+            makes the merge fail.
+          </li>
+        </ol>
+      </section>
+      <footer>
+        <span>Prerelease APIs · pinned development commits</span
+        ><span
+          ><a href="https://github.com/Ortus-Solutions/TestBox/pull/217"
+            >TestBox #217</a
+          >
+          ·
+          <a href="https://github.com/Ortus-Solutions/testbox-cli/pull/28"
+            >CLI #28</a
+          >
+          ·
+          <a href="https://github.com/Ortus-Solutions/testbox-cli/pull/27"
+            >Completion #27</a
+          ></span
+        >
+      </footer>
+    </main>
+  </body>
+</html>

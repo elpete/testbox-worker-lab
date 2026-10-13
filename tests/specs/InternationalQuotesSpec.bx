@@ -1,0 +1,22 @@
+class extends="tests.resources.ParcelSpec" {
+    function run() {
+        describe( "InternationalQuotes", () => {
+            it( "uses the international base", () => {
+                pauseForDemo()
+                expect( dispatch.quote( 500, "international" ) ).toBe( 1325 )
+            } )
+            it( "prices a kilogram", () => {
+                pauseForDemo()
+                expect( dispatch.quote( 1000, "international" ) ).toBe( 1450 )
+            } )
+            it( "rounds international weight", () => {
+                pauseForDemo()
+                expect( dispatch.quote( 1001, "international" ) ).toBe( 1575 )
+            } )
+            it( "prices the international maximum", () => {
+                pauseForDemo()
+                expect( dispatch.quote( 20000, "international" ) ).toBe( 6200 )
+            } )
+        } )
+    }
+}

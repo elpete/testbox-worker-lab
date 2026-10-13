@@ -1,0 +1,3 @@
+# Worker Lab design
+
+Operate/read surface: white background, charcoal text, cobalt accent. System sans typography; large concise heading, eight-bundle workload count, thin horizontal rules. A single unframed worker timeline and a compact measured-results table carry the interface. Three numbered pathways provide real commands and links. No fabricated benchmark data. Responsive controls wrap; timeline preserves clear labels. Respect reduced motion and expose progress in an aria-live region. The generated concept is the layout reference; replace its invented commands and misleading copy with inspected APIs.

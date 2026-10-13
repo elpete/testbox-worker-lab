@@ -1,0 +1,22 @@
+class extends="tests.resources.ParcelSpec" {
+    function run() {
+        describe( "ManifestFiles", () => {
+            it( "persists the receipt", () => {
+                pauseForDemo()
+                dispatch.manifest( [ {id:"p-1",grams:500,zone:"local"} ], sandbox & "manifest.json" ); expect( JSONDeserialize( fileRead( sandbox & "manifest.json" ) ).totalCents ).toBe( 525 )
+            } )
+            it( "replaces an old receipt", () => {
+                pauseForDemo()
+                dispatch.manifest( [{id:"a",grams:500,zone:"local"}], sandbox & "manifest.json" ); dispatch.manifest( [], sandbox & "manifest.json" ); expect( JSONDeserialize( fileRead( sandbox & "manifest.json" ) ).count ).toBe( 0 )
+            } )
+            it( "writes parcel identifiers", () => {
+                pauseForDemo()
+                var out = dispatch.manifest( [{id:"parcel-42",grams:500,zone:"local"}], sandbox & "manifest.json" ); expect( out.ids ).toInclude( "parcel-42" )
+            } )
+            it( "keeps invalid manifests off disk", () => {
+                pauseForDemo()
+                expect( () => dispatch.manifest( [{id:"a",grams:0,zone:"local"}], sandbox & "invalid.json" ) ).toThrow( "Parcel.InvalidWeight" ); expect( fileExists( sandbox & "invalid.json" ) ).toBeFalse()
+            } )
+        } )
+    }
+}

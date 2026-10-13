@@ -1,0 +1,21 @@
+/** Original parcel quote and manifest logic. Prices are integer cents. */
+class {
+    function quote( required numeric grams, required string zone, boolean express = false ) {
+        if ( grams <= 0 || grams > 20000 ) throw( type="Parcel.InvalidWeight", message="Weight must be 1–20000 grams." )
+        var bases = { local: 400, regional: 650, international: 1200 }
+        if ( !bases.keyExists( zone ) ) throw( type="Parcel.InvalidZone", message="Unknown destination zone." )
+        return bases[ zone ] + ceiling( grams / 500 ) * 125 + ( express ? 900 : 0 )
+    }
+    function manifest( required array parcels, required string destination ) {
+        var total = 0
+        var ids = {}
+        for ( var parcel in parcels ) {
+            if ( ids.keyExists( parcel.id ) ) throw( type="Parcel.Duplicate", message="Duplicate parcel identifier." )
+            ids[ parcel.id ] = true
+            total += quote( parcel.grams, parcel.zone, parcel.express ?: false )
+        }
+        var receipt = { count: parcels.len(), totalCents: total, ids: ids.keyArray() }
+        fileWrite( destination, JSONSerialize( receipt ) )
+        return receipt
+    }
+}

@@ -1,0 +1,22 @@
+class extends="tests.resources.ParcelSpec" {
+    function run() {
+        describe( "DestinationGuards", () => {
+            it( "rejects unknown destinations", () => {
+                pauseForDemo()
+                expect( () => dispatch.quote( 100, "moon" ) ).toThrow( "Parcel.InvalidZone" )
+            } )
+            it( "rejects empty destinations", () => {
+                pauseForDemo()
+                expect( () => dispatch.quote( 100, "" ) ).toThrow( "Parcel.InvalidZone" )
+            } )
+            it( "accepts local", () => {
+                pauseForDemo()
+                expect( dispatch.quote( 100, "local" ) ).toBe( 525 )
+            } )
+            it( "accepts regional", () => {
+                pauseForDemo()
+                expect( dispatch.quote( 100, "regional" ) ).toBe( 775 )
+            } )
+        } )
+    }
+}

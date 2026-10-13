@@ -1,0 +1,10 @@
+reports = []
+for ( index = 1; index <= 2; index++ ) {
+    reports.append( new testbox.system.TestBox( bundles = [ "tests.fixtures.DeliberateFailure", "tests.specs.LocalQuotesSpec" ] )
+        .runRaw( shard = index & "/2", shardRunId = "real-failure-contract" ).getMemento() )
+}
+combined = new testbox.system.parallel.ShardPlan().merge( reports )
+if ( combined.passed || combined.totalFail != 1 || combined.totalPass != 4 ) {
+    throw( message = "Merging real assertion failures must preserve failure." )
+}
+println( "PASS: real assertion failure remains failed after native shard merge" )

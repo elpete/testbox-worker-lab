@@ -1,0 +1,13 @@
+class extends="testbox.system.BaseSpec" {
+    function beforeAll() {
+        variables.dispatch = new app.Dispatch()
+        variables.sandbox = getTempDirectory() & "parcel-" & createUUID() & "/"
+        directoryCreate( variables.sandbox )
+    }
+    function afterAll() {
+        if ( directoryExists( variables.sandbox ) ) directoryDelete( variables.sandbox, true )
+    }
+    function pauseForDemo() {
+        sleep( val( getSystemSetting( "PARCEL_DELAY_MS", "300" ) ) )
+    }
+}

@@ -1,0 +1,22 @@
+class extends="tests.resources.ParcelSpec" {
+    function run() {
+        describe( "ManifestTotals", () => {
+            it( "writes an empty manifest", () => {
+                pauseForDemo()
+                var out = dispatch.manifest( [], sandbox & "manifest.json" ); expect( out.count ).toBe( 0 )
+            } )
+            it( "sums mixed destinations", () => {
+                pauseForDemo()
+                var out = dispatch.manifest( [ {id:"a",grams:500,zone:"local"},{id:"b",grams:500,zone:"regional"} ], sandbox & "manifest.json" ); expect( out.totalCents ).toBe( 1300 )
+            } )
+            it( "includes express fees", () => {
+                pauseForDemo()
+                var out = dispatch.manifest( [ {id:"a",grams:500,zone:"local",express:true} ], sandbox & "manifest.json" ); expect( out.totalCents ).toBe( 1425 )
+            } )
+            it( "rejects duplicate identifiers", () => {
+                pauseForDemo()
+                expect( () => dispatch.manifest( [ {id:"a",grams:500,zone:"local"},{id:"a",grams:500,zone:"local"} ], sandbox & "manifest.json" ) ).toThrow( "Parcel.Duplicate" )
+            } )
+        } )
+    }
+}

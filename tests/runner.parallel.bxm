@@ -1,0 +1,7 @@
+<bx:script>
+new testbox.system.parallel.Runner(
+    provider = new tests.resources.ProcessProvider(),
+    directory = "tests.specs",
+    maxWorkers = 8
+).serve()
+</bx:script>

@@ -1,0 +1,22 @@
+class extends="tests.resources.ParcelSpec" {
+    function run() {
+        describe( "ExpressDelivery", () => {
+            it( "adds express to local", () => {
+                pauseForDemo()
+                expect( dispatch.quote( 500, "local", true ) ).toBe( 1425 )
+            } )
+            it( "adds express to regional", () => {
+                pauseForDemo()
+                expect( dispatch.quote( 500, "regional", true ) ).toBe( 1675 )
+            } )
+            it( "adds express to international", () => {
+                pauseForDemo()
+                expect( dispatch.quote( 500, "international", true ) ).toBe( 2225 )
+            } )
+            it( "keeps standard delivery cheaper", () => {
+                pauseForDemo()
+                expect( dispatch.quote( 501, "local", true ) - dispatch.quote( 501, "local" ) ).toBe( 900 )
+            } )
+        } )
+    }
+}

@@ -1,0 +1,22 @@
+class extends="tests.resources.ParcelSpec" {
+    function run() {
+        describe( "WeightGuards", () => {
+            it( "rejects zero", () => {
+                pauseForDemo()
+                expect( () => dispatch.quote( 0, "local" ) ).toThrow( "Parcel.InvalidWeight" )
+            } )
+            it( "rejects negative weight", () => {
+                pauseForDemo()
+                expect( () => dispatch.quote( -1, "local" ) ).toThrow( "Parcel.InvalidWeight" )
+            } )
+            it( "rejects overweight", () => {
+                pauseForDemo()
+                expect( () => dispatch.quote( 20001, "local" ) ).toThrow( "Parcel.InvalidWeight" )
+            } )
+            it( "accepts the exact limit", () => {
+                pauseForDemo()
+                expect( dispatch.quote( 20000, "local" ) ).toBe( 5400 )
+            } )
+        } )
+    }
+}

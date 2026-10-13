@@ -1,0 +1,22 @@
+class extends="tests.resources.ParcelSpec" {
+    function run() {
+        describe( "LocalQuotes", () => {
+            it( "charges a half kilogram", () => {
+                pauseForDemo()
+                expect( dispatch.quote( 500, "local" ) ).toBe( 525 )
+            } )
+            it( "rounds up the next gram", () => {
+                pauseForDemo()
+                expect( dispatch.quote( 501, "local" ) ).toBe( 650 )
+            } )
+            it( "prices the maximum weight", () => {
+                pauseForDemo()
+                expect( dispatch.quote( 20000, "local" ) ).toBe( 5400 )
+            } )
+            it( "prices a lightweight parcel", () => {
+                pauseForDemo()
+                expect( dispatch.quote( 1, "local" ) ).toBe( 525 )
+            } )
+        } )
+    }
+}

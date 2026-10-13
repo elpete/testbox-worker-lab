@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+export BOXLANG_HOME="$PWD/.runtime/boxlang"
+export PARCEL_DELAY_MS=0
+exec java -cp .deps/boxlang-1.18.0.jar ortus.boxlang.runtime.BoxRunner tests/contracts.bxs

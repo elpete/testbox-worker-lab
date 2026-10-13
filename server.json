@@ -1,0 +1,20 @@
+{
+  "name": "testbox-worker-lab",
+  "openBrowser": false,
+  "app": {
+    "cfengine": "https://downloads.ortussolutions.com/ortussolutions/boxlang-runtimes/boxlang-servlet/1.18.6/boxlang-servlet-1.18.6.zip",
+    "serverHomeDirectory": ".engine/boxlang"
+  },
+  "web": {
+    "host": "127.0.0.1",
+    "http": {
+      "port": 8642
+    }
+  },
+  "jvm": {
+    "heapSize": 512
+  },
+  "env": {
+    "PARCEL_DELAY_MS": "300"
+  }
+}

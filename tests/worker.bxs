@@ -1,0 +1,6 @@
+selection = JSONDeserialize( fileRead( getSystemSetting( "PARCEL_SELECTION" ) ) )
+progress = new testbox.system.parallel.ProgressFile( getSystemSetting( "PARCEL_PROGRESS" ) )
+report = new testbox.system.TestBox( bundles = selection.bundles )
+    .runRaw( argumentCollection = selection.filters, callbacks = progress.createStreamingCallbacks() )
+    .getMemento( includeDebugBuffer = true )
+fileWrite( getSystemSetting( "PARCEL_RESULT" ), JSONSerialize( report ) )

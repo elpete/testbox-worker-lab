@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+if [[ -z "${JAVA_HOME:-}" ]]; then
+  JAVA_HOME=$(java -XshowSettings:properties -version 2>&1 | sed -n 's/^[[:space:]]*java.home = //p')
+fi
+export JAVA_HOME
+exec scripts/box server start javaHome="$JAVA_HOME" "$@"

@@ -1,0 +1,24 @@
+{
+  "name": "testbox-worker-lab",
+  "version": "0.1.0",
+  "private": true,
+  "testbox": {
+    "runner": [
+      {
+        "serial": "/tests/runner.bxm"
+      },
+      {
+        "parallel": "/tests/runner.parallel.bxm"
+      }
+    ]
+  },
+  "scripts": {
+    "demo:start": "!scripts/start",
+    "demo:stop": "server stop",
+    "test:serial": "testbox run runner=serial outputFile=results/serial.json",
+    "test:parallel": "testbox run runner=parallel workers=4 interactive=false outputFile=results/parallel.json",
+    "test:shard1": "testbox run runner=serial shard=1/2 shardRunId=local-demo outputFile=results/shards/one.json",
+    "test:shard2": "testbox run runner=serial shard=2/2 shardRunId=local-demo outputFile=results/shards/two.json",
+    "test:merge": "testbox merge directory=results/shards outputFile=results/combined.json"
+  }
+}
