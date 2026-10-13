@@ -23,7 +23,7 @@ class extends="testbox.system.parallel.WorkerProvider" {
         directoryCopy( variables.root & ".runtime/boxlang/modules", home & "/modules", true )
         var javaBin = getSystemSetting( "PARCEL_JAVA", createObject( "java", "java.lang.System" ).getProperty( "java.home" ) & "/bin/java" )
         var args = createObject( "java", "java.util.ArrayList" ).init()
-        for ( var arg in [ javaBin, "-Xmx256m", "-Djava.io.tmpdir=" & dir & "/workspace", "-cp", variables.root & ".deps/boxlang-1.18.0.jar", "ortus.boxlang.runtime.BoxRunner", variables.root & "tests/worker.bxs" ] ) args.add( javacast( "string", arg ) )
+        for ( var arg in [ javaBin, "-Xmx256m", "-Djava.io.tmpdir=" & dir & "/workspace", "-cp", variables.root & ".deps/boxlang-runtime/boxlang-1.18.0.jar", "ortus.boxlang.runtime.BoxRunner", variables.root & "tests/worker.bxs" ] ) args.add( javacast( "string", arg ) )
         var builder = createObject( "java", "java.lang.ProcessBuilder" ).init( args )
         builder.directory( createObject( "java", "java.io.File" ).init( variables.root ) )
         builder.redirectErrorStream( true )

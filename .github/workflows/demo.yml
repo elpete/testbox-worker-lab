@@ -7,6 +7,8 @@ on:
 env:
   COMMANDBOX_HOME: ${{ github.workspace }}/.runtime/commandbox
   BOXLANG_HOME: ${{ github.workspace }}/.runtime/tooling
+  BOXLANG_JAR_PATH: ${{ github.workspace }}/.deps/boxlang-runtime/boxlang-1.18.0.jar
+  BOX_SERVER_JVM_JAVAHOME: ${{ github.workspace }}/.runtime/commandbox/serverJREs/openjdk21_jre_x64_linux_hotspot_jdk-21.0.12.1+1
 permissions:
   contents: read
   actions: read
@@ -19,35 +21,15 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6
-        with:
-          distribution: temurin
-          java-version: "21.0.10"
-      - uses: Ortus-Solutions/setup-commandbox@157ba183d42a6f1abfcbaa4c303072f95837f417
-        with:
-          version: "6.3.5"
-      - name: Prepare isolated CommandBox home
-        run: mkdir -p "$COMMANDBOX_HOME"
-      - name: Install pinned dependencies
-        run: box install
-      - name: Verify and wire pinned dependencies
-        run: box run-script setup
+      - uses: ./.github/actions/prepare
       - name: Verify BoxLang-only authored source
         run: box run-script audit
       - name: Start loopback application
         run: |
           box server start --noSaveSettings
           box run-script ready
-      - name: Real failure preservation contract
-        run: box run-script contracts
-      - name: Quick serial and worker correctness
-        run: |
-          box testbox run runner=serial options:demoDelayMs=300 outputFile=results/serial.json
-          box run-script verify:serial
-          box testbox run runner=parallel workers=2 options:demoDelayMs=300 interactive=false outputFile=results/parallel-2.json
-          box run-script verify:two
-          box testbox run runner=parallel workers=4 options:demoDelayMs=300 interactive=false outputFile=results/parallel-4.json
-          box run-script verify:four
+      - name: Quick native CLI correctness and real failure preservation
+        run: box run-script ci:quick
       - name: Quick browser comparison and long native RUN
         run: |
           box run-script browser:setup
@@ -71,24 +53,9 @@ jobs:
         mode: [serial, parallel-4]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6
-        with:
-          distribution: temurin
-          java-version: "21.0.10"
-      - uses: Ortus-Solutions/setup-commandbox@157ba183d42a6f1abfcbaa4c303072f95837f417
-        with:
-          version: "6.3.5"
-      - name: Prepare isolated CommandBox home
-        run: mkdir -p "$COMMANDBOX_HOME"
-      - name: Install pinned dependencies
-        run: box install
-      - name: Verify and wire pinned dependencies
-        run: box run-script setup
+      - uses: ./.github/actions/prepare
       - name: Measure long CommandBox and server lifecycle
         run: box boxlang cli scripts/lab.bxs measure-case ${{ matrix.mode }}
-      - name: Stop owned server
-        if: always()
-        run: box server stop
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
@@ -110,24 +77,9 @@ jobs:
         shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6
-        with:
-          distribution: temurin
-          java-version: "21.0.10"
-      - uses: Ortus-Solutions/setup-commandbox@157ba183d42a6f1abfcbaa4c303072f95837f417
-        with:
-          version: "6.3.5"
-      - name: Prepare isolated CommandBox home
-        run: mkdir -p "$COMMANDBOX_HOME"
-      - name: Install pinned dependencies
-        run: box install
-      - name: Verify and wire pinned dependencies
-        run: box run-script setup
+      - uses: ./.github/actions/prepare
       - name: Measure assigned long shard and lifecycle
         run: box boxlang cli scripts/lab.bxs measure-case shard-${{ matrix.shard }}
-      - name: Stop owned server
-        if: always()
-        run: box server stop
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
@@ -147,29 +99,14 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6
-        with:
-          distribution: temurin
-          java-version: "21.0.10"
-      - uses: Ortus-Solutions/setup-commandbox@157ba183d42a6f1abfcbaa4c303072f95837f417
-        with:
-          version: "6.3.5"
-      - name: Prepare isolated CommandBox home
-        run: mkdir -p "$COMMANDBOX_HOME"
-      - name: Install pinned dependencies
-        run: box install
-      - name: Verify and wire pinned dependencies
-        run: box run-script setup
+      - uses: ./.github/actions/prepare
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           pattern: testbox-shard-*
           path: results/shards
           merge-multiple: true
-      - name: Verify full suite coverage and merge
-        run: |
-          box testbox merge directory=results/shards outputFile=results/combined.json
-          box run-script verify:combined
-          box run-script verify:merge
+      - name: Native CLI merge, exact coverage and rejection safeguards
+        run: box run-script ci:merge
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
@@ -182,19 +119,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6
+      - uses: ./.github/actions/prepare
         with:
-          distribution: temurin
-          java-version: "21.0.10"
-      - uses: Ortus-Solutions/setup-commandbox@157ba183d42a6f1abfcbaa4c303072f95837f417
-        with:
-          version: "6.3.5"
-      - name: Prepare isolated CommandBox home
-        run: mkdir -p "$COMMANDBOX_HOME"
-      - name: Install pinned dependencies
-        run: box install
-      - name: Verify and wire pinned dependencies
-        run: box run-script setup
+          summary-only: "true"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           pattern: timing-*
@@ -202,7 +129,8 @@ jobs:
       - name: Compare real full hosted job and shard-path boundaries
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: box run-script ci:summary
+        working-directory: ci/summary
+        run: box boxlang cli ../../scripts/summary.bxs
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: timing-comparison

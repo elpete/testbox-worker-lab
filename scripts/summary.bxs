@@ -1,0 +1,5 @@
+args = cliGetArgs().positionals
+args.deleteAt(1)
+summary = new Summary()
+summary.validateRuntime()
+if ( !args.len() || args[1] != "validate-runtime" ) summary.run()

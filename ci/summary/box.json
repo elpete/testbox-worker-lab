@@ -1,0 +1,9 @@
+{
+  "name": "worker-lab-minimal-summary",
+  "private": true,
+  "dependencies": {
+    "commandbox-boxlang": "https://downloads.ortussolutions.com/ortussolutions/commandbox-modules/commandbox-boxlang/1.22.0/commandbox-boxlang-1.22.0.zip",
+    "boxlang-1.18.0": "jar:https://downloads.ortussolutions.com/ortussolutions/boxlang/1.18.0/boxlang-1.18.0.jar"
+  },
+  "installPaths": { "boxlang-1.18.0": "../../.deps/boxlang-runtime/" }
+}

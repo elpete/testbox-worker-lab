@@ -48,7 +48,14 @@
     "measure:two": "boxlang cli scripts/lab.bxs measure-case parallel-2",
     "measure:four": "boxlang cli scripts/lab.bxs measure-case parallel-4",
     "measure:shards": "boxlang cli scripts/lab.bxs measure-case local-shards",
-    "ci:summary": "boxlang cli scripts/lab.bxs ci-summary",
+    "ci:summary": "boxlang cli scripts/summary.bxs",
+    "ci:quick": [
+      "testbox run runner=serial options:demoDelayMs=300 outputFile=results/serial.json",
+      "testbox run runner=parallel workers=2 options:demoDelayMs=300 interactive=false outputFile=results/parallel-2.json",
+      "testbox run runner=parallel workers=4 options:demoDelayMs=300 interactive=false outputFile=results/parallel-4.json",
+      "boxlang cli scripts/lab.bxs verify-quick"
+    ],
+    "ci:merge": ["testbox merge directory=results/shards outputFile=results/combined.json", "boxlang cli scripts/lab.bxs merge-checks"],
     "contracts": "boxlang cli scripts/lab.bxs contracts",
     "verify:serial": "boxlang cli scripts/lab.bxs verify-report results/serial.json",
     "verify:two": "boxlang cli scripts/lab.bxs verify-report results/parallel-2.json",

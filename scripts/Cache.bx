@@ -1,0 +1,56 @@
+/** Local cache rehearsal using the same allowlist as the pinned Actions cache. */
+class {
+    function init(string repository="") {
+        variables.repository = len(repository) ? createObject("java","java.io.File").init(repository).getCanonicalPath() & "/" : createObject("java","java.io.File").init(getCurrentTemplatePath()).getParentFile().getParentFile().getCanonicalPath() & "/"
+        variables.manifest = JSONDeserialize(fileRead(variables.repository & "ci/cache-manifest.json"))
+        return this
+    }
+    function fingerprint() {
+        var inputs = structCopy(variables.manifest)
+        var digests = []
+        for (var name in inputs.inputs) digests.append(name & ":" & lCase(hash(fileReadBinary(variables.repository & name),"SHA-256")))
+        return lCase(hash(arrayToList(digests,char(10)),"SHA-256"))
+    }
+    boolean function excluded(required string name) {
+        for (var prefix in variables.manifest.exclude) if (name == prefix || name.startsWith(prefix & "/")) return true
+        return false
+    }
+    function copyData(required string source, required string destination, boolean full=true) {
+        var files = createObject("java","java.nio.file.Files")
+        var sourcePath = createObject("java","java.io.File").init(source).getCanonicalFile().toPath()
+        var destinationPath = createObject("java","java.io.File").init(destination).getCanonicalFile().toPath()
+        if (!destinationPath.startsWith(createObject("java","java.io.File").init(variables.repository).getCanonicalFile().toPath())) throw(message="Cache rehearsal destination must remain in this repository")
+        if (destinationPath == sourcePath || destinationPath.startsWith(sourcePath)) throw(message="Use a separate cache rehearsal directory")
+        var roots = duplicate(variables.manifest.bootstrap)
+        if (full) roots.append(variables.manifest.dependencies,true)
+        var copied = 0
+        for (var prefix in roots) {
+            var origin = sourcePath.resolve(prefix)
+            if (!files.exists(origin)) continue
+            var stream = files.walk(origin)
+            try {
+                var iterator = stream.iterator()
+                while (iterator.hasNext()) {
+                    var item = iterator.next()
+                    var relative = sourcePath.relativize(item).toString().replace("\","/","all")
+                    if (excluded(relative)) continue
+                    var target = destinationPath.resolve(relative)
+                    if (files.isSymbolicLink(item)) {
+                        var link = files.readSymbolicLink(item)
+                        // Preserve only package-internal relative runtime links; never checkout mappings.
+                        if (link.isAbsolute() || !item.getParent().resolve(link).normalize().startsWith(origin)) throw(message="External cache symlink rejected: " & relative)
+                        files.createDirectories(target.getParent())
+                        if (!files.exists(target)) files.createSymbolicLink(target,link)
+                    } else if (files.isDirectory(item)) files.createDirectories(target)
+                    else {
+                        files.createDirectories(target.getParent())
+                        if (!files.exists(target)) files.copy(item,target)
+                        files.setPosixFilePermissions(target,files.getPosixFilePermissions(item))
+                        copied++
+                    }
+                }
+            } finally { stream.close() }
+        }
+        return {files:copied,fingerprint:fingerprint(),configurationCached:false,serverStateCached:false,resultsCached:false}
+    }
+}

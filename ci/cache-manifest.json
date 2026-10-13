@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "javaRelease": "21.0.12.1+1",
+  "bootstrap": [
+    ".runtime/commandbox/lib",
+    ".runtime/commandbox/cfml/box.json",
+    ".runtime/commandbox/cfml/license.txt",
+    ".runtime/commandbox/cfml/system",
+    ".runtime/commandbox/cfml/libExt",
+    ".runtime/commandbox/cfml/modules/commandbox-boxlang",
+    ".runtime/commandbox/cfml/modules/commandbox-cfconfig",
+    ".runtime/commandbox/cfml/modules/commandbox-dotenv",
+    ".runtime/commandbox/cfml/modules/commandbox-update-check",
+    ".runtime/commandbox/cfml/modules/coldbox-cli",
+    ".runtime/commandbox/cfml/modules/contentbox-cli",
+    ".runtime/commandbox/cfml/modules/testbox-cli/ModuleConfig.cfc",
+    ".runtime/commandbox/cfml/modules/testbox-cli/box.json",
+    ".runtime/commandbox/cfml/modules/testbox-cli/commands",
+    ".runtime/commandbox/cfml/modules/testbox-cli/models",
+    ".runtime/commandbox/cfml/modules/testbox-cli/templates",
+    ".runtime/commandbox/artifacts",
+    ".runtime/commandbox/serverJREs",
+    ".deps/boxlang-runtime"
+  ],
+  "dependencies": [
+    ".deps/testbox",
+    ".runtime/boxlang/modules/bx-compat-cfml",
+    ".runtime/tooling/modules/bx-compat-cfml"
+  ],
+  "exclude": [".runtime/commandbox/cfml/modules/testbox-cli/testbox"],
+  "inputs": [
+    "box.json", "box-lock.json", "dependencies.json", "server.json",
+    "ci/cache-manifest.json", "ci/summary/box.json",
+    ".github/actions/prepare/action.yml", ".github/workflows/demo.yml",
+    "scripts/Lab.bx", "scripts/Cache.bx", "scripts/Summary.bx",
+    "scripts/summary.bxs", "scripts/lab.bxs", "tests/resources/ProcessProvider.bx"
+  ]
+}

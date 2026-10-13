@@ -56,7 +56,10 @@ class {
     function setup() {
         var home = getSystemSetting( "COMMANDBOX_HOME", "" )
         // Validation also prevents modifying the user's normal CommandBox CLI.
-        if ( commandBox( [ "version" ] ).exitCode != 0 ) throw( message="Installed CommandBox is unavailable" )
+        var expected = variables.root & ".runtime/commandbox"
+        if ( !len(home) || createObject("java","java.io.File").init(home).getCanonicalPath() != createObject("java","java.io.File").init(expected).getCanonicalPath() ) throw(message="Use this checkout's isolated COMMANDBOX_HOME")
+        // Installed CommandBox already launched this helper; avoid another CLI JVM for `version`.
+        if ( len(getSystemSetting("BOX_SERVER_JVM_JAVAHOME","")) && !createObject("java","java.lang.System").getProperty("java.runtime.version").startsWith("21.0.12.1+1") ) throw(message="Managed CI runtime differs from the pinned shared JRE")
         var cliRoot = home & "/cfml/modules/testbox-cli"
         for ( var item in [ {key:"testbox",dir:variables.root & ".deps/testbox"}, {key:"cli",dir:cliRoot} ] ) {
             for ( var path in variables.pins[ item.key ].integrity ) {
@@ -71,13 +74,13 @@ class {
         makeLink( variables.root & ".deps/testbox", cliFramework )
         var installedJar = variables.root & ".deps/boxlang-runtime/boxlang-1.18.0.jar"
         if ( !fileExists( installedJar ) || lCase( hash( fileReadBinary( installedJar ), "SHA-256" ) ) != variables.pins.boxlang.sha256 ) throw( message="Pinned worker runtime missing or changed; run box install." )
-        if ( !fileExists( variables.root & ".deps/boxlang-1.18.0.jar" ) ) fileCopy( installedJar, variables.root & ".deps/boxlang-1.18.0.jar" )
-        if ( lCase( hash( fileReadBinary( variables.root & ".deps/boxlang-1.18.0.jar" ), "SHA-256" ) ) != variables.pins.boxlang.sha256 ) throw( message="Worker runtime copy differs from the pinned package" )
         var compat = variables.root & ".runtime/boxlang/modules/bx-compat-cfml"
         if ( !directoryExists( compat ) ) throw( message="CFML compatibility module missing; run box install." )
         var toolingCompat = variables.root & ".runtime/tooling/modules/bx-compat-cfml"
         if ( !directoryExists( toolingCompat ) ) directoryCopy( compat, toolingCompat, true )
-        fileWrite( variables.root & ".runtime/setup.json", JSONSerialize( {testbox:variables.pins.testbox.commit, cli:variables.pins.cli.commit, sourceIntegrityVerified:true, installedCommandBox:true} ) )
+        var receipt = {testbox:variables.pins.testbox.commit, cli:variables.pins.cli.commit, sourceIntegrityVerified:true, installedCommandBox:true}
+        if (len(getSystemSetting("LAB_SETUP_CACHE_KEY",""))) receipt.cache = {key:getSystemSetting("LAB_SETUP_CACHE_KEY"),bootstrapHit:getSystemSetting("LAB_BOOTSTRAP_CACHE_HIT","false") == "true",dependencyHit:getSystemSetting("LAB_DEPENDENCY_CACHE_HIT","false") == "true"}
+        fileWrite( variables.root & ".runtime/setup.json", JSONSerialize(receipt) )
         println( "Ready: box server start; box testbox run runner=parallel workers=4" )
     }
 
@@ -171,6 +174,8 @@ class {
         if ( action == "setup" ) { setup(); return }
         if ( action == "audit" ) { auditSource(); return }
         if ( action == "smoke" ) { smoke(); return }
+        if ( action == "verify-quick" ) { for ( var path in ["results/serial.json","results/parallel-2.json","results/parallel-4.json"] ) checkReport(path); include "../tests/contracts.bxs"; return }
+        if ( action == "merge-checks" ) { checkReport("results/combined.json"); verifyMerge(); return }
         if ( action == "measure-case" ) { measureCase( args ); return }
         if ( action == "ci-summary" ) { ciSummary(); return }
         if ( action == "verify-report" ) { if ( args.len() != 1 ) throw( message="verify-report requires a JSON report path" ); checkReport( args[ 1 ] ); return }
@@ -197,6 +202,8 @@ class {
         ensureDirectory(variables.root & "results/measurements")
         var identity = getSystemSetting("GITHUB_RUN_ID","local") & "-" & getSystemSetting("GITHUB_RUN_ATTEMPT","1") & "-" & getSystemSetting("GITHUB_SHA",createUUID())
         var timing = {mode:mode, delayMs:delayMs, simulatedWait:true, runId:identity, boundary:"Before box server start through box server stop; includes CLI processes, server/JVM startup, readiness, execution and shutdown; excludes package install and outer BoxLang helper bootstrap"}
+        var setupReceipt = JSONDeserialize(fileRead(variables.root & ".runtime/setup.json"))
+        if (setupReceipt.keyExists("cache")) timing.cache = setupReceipt.cache
         // Ensure a real cold server process. This preflight stop is outside the boundary.
         if ( commandBox(["server","stop"]).exitCode != 0 ) throw(message="Cannot reset the owned measurement server")
         var started = clockMs()
@@ -252,41 +259,7 @@ class {
         println(JSONSerialize(timing))
     }
 
-    function ciSummary() {
-        var directory = variables.root & "results/ci-input"
-        var timings = []
-        for ( var path in directoryList(directory,true,"path","*-timing.json") ) timings.append(JSONDeserialize(fileRead(path)))
-        if ( timings.len() != 6 ) throw(message="Require serial, parallel-4 and four shard lifecycle timings")
-        var serial = timings.filter(t => t.mode == "serial")[1]
-        var workers = timings.filter(t => t.mode == "parallel-4")[1]
-        if ( serial.delayMs != 10000 || workers.delayMs != serial.delayMs || serial.totalPass != 32 || workers.totalPass != 32 ) throw(message="Comparison workloads differ")
-        for ( var timing in timings ) if ( timing.delayMs != serial.delayMs ) throw(message="Shard delay differs")
-        var client = createObject("java","java.net.http.HttpClient").newHttpClient()
-        var endpoint = "https://api.github.com/repos/" & getSystemSetting("GITHUB_REPOSITORY") & "/actions/runs/" & getSystemSetting("GITHUB_RUN_ID") & "/jobs?per_page=100"
-        var call = createObject("java","java.net.http.HttpRequest").newBuilder(createObject("java","java.net.URI").init(endpoint)).header("Authorization","Bearer " & getSystemSetting("GITHUB_TOKEN")).header("Accept","application/vnd.github+json").header("X-GitHub-Api-Version","2022-11-28").timeout(createObject("java","java.time.Duration").ofSeconds(30)).GET().build()
-        var response = client.send(call,createObject("java","java.net.http.HttpResponse$BodyHandlers").ofString())
-        if ( response.statusCode() != 200 ) throw(message="Cannot read hosted timing boundaries: HTTP " & response.statusCode())
-        var jobs = JSONDeserialize(response.body()).jobs
-        var shardJobs = jobs.filter(j => j.name.startsWith("shards ("))
-        var baselineJob = jobs.filter(j => j.name == "comparison (serial)")[1]
-        var workerJob = jobs.filter(j => j.name == "comparison (parallel-4)")[1]
-        var mergeJob = jobs.filter(j => j.name == "merge")[1]
-        var epoch = instant => createObject("java","java.time.Instant").parse(instant).toEpochMilli()
-        if ( shardJobs.len() != 4 ) throw(message="Require four hosted shard jobs")
-        for ( var job in shardJobs ) if ( job.conclusion != "success" ) throw(message="Incomplete hosted shard")
-        if ( baselineJob.conclusion != "success" || workerJob.conclusion != "success" || mergeJob.conclusion != "success" ) throw(message="Incomplete hosted comparison")
-        var firstShard = shardJobs.map(j => epoch(j.started_at)).min()
-        var summary = {commit:getSystemSetting("GITHUB_SHA"),delayMs:10000,syntheticWait:true,timings:timings,
-            serialJobMs:epoch(baselineJob.completed_at)-epoch(baselineJob.started_at),workerJobMs:epoch(workerJob.completed_at)-epoch(workerJob.started_at),
-            shardPathMs:epoch(mergeJob.completed_at)-firstShard,
-            hostedBoundary:"Job start through completion; serial/worker jobs include install, helper/bootstrap and artifact upload. Shard path starts at earliest shard job start and ends after merge job completes; includes provisioning, uploads, scheduling gap and merge. Excludes initial runner queue and this summary job. Jobs use different machines; one observation, not a controlled production benchmark."}
-        var text = "## Measured synthetic-latency comparison" & char(10) & char(10) & "32 real tests / eight bundles / 10 seconds deliberate waiting per test. Equivalent passing results verified." & char(10) & char(10) & "| Boundary | Serial | Four workers | Four hosted shards + merge |" & char(10) & "| --- | ---: | ---: | ---: |" & char(10) & "| Full hosted job/path (seconds) | " & round(summary.serialJobMs/1000,2) & " | " & round(summary.workerJobMs/1000,2) & " | " & round(summary.shardPathMs/1000,2) & " |" & char(10) & "| CommandBox/server lifecycle (seconds) | " & round(serial.lifecycleMs/1000,2) & " | " & round(workers.lifecycleMs/1000,2) & " | See each shard timing; full path above includes merge |" & char(10) & char(10) & summary.hostedBoundary & char(10) & char(10) & "Workers share one CI machine and create private JVMs. Shards use four independent CI machines. TestBox's combined duration is the longest shard test duration, not the hosted path." & char(10)
-        ensureDirectory(variables.root & "results/comparison")
-        fileWrite(variables.root & "results/comparison/summary.json",JSONSerialize(summary))
-        fileWrite(variables.root & "results/comparison/summary.md",text)
-        fileAppend(getSystemSetting("GITHUB_STEP_SUMMARY"),text)
-        println(text)
-    }
+    function ciSummary() { new scripts.Summary().validateRuntime(); new scripts.Summary().run() }
 
     /** CommandBox installs the browser module and launches its native BoxLang installer. */
     function browserSetup() {

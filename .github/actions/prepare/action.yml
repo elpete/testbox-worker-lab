@@ -1,0 +1,161 @@
+name: Prepare immutable Worker Lab dependencies
+description: Exact-key public package/runtime caches; mutable state and secrets are excluded.
+inputs:
+  summary-only:
+    description: Install only the native BoxLang summary dependencies on a cache miss.
+    default: "false"
+outputs:
+  bootstrap-key:
+    description: Frozen key computed from checkout inputs before any installer rewrites them.
+    value: ${{ steps.bootstrap.outputs.cache-primary-key }}
+runs:
+  using: composite
+  steps:
+    - name: Restore immutable CommandBox bootstrap and pinned runtime
+      id: bootstrap
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: |
+          .runtime/commandbox/lib
+          .runtime/commandbox/cfml/box.json
+          .runtime/commandbox/cfml/license.txt
+          .runtime/commandbox/cfml/system
+          .runtime/commandbox/cfml/libExt
+          .runtime/commandbox/cfml/modules/commandbox-boxlang
+          .runtime/commandbox/cfml/modules/commandbox-cfconfig
+          .runtime/commandbox/cfml/modules/commandbox-dotenv
+          .runtime/commandbox/cfml/modules/commandbox-update-check
+          .runtime/commandbox/cfml/modules/coldbox-cli
+          .runtime/commandbox/cfml/modules/contentbox-cli
+          .runtime/commandbox/cfml/modules/testbox-cli/ModuleConfig.cfc
+          .runtime/commandbox/cfml/modules/testbox-cli/box.json
+          .runtime/commandbox/cfml/modules/testbox-cli/commands
+          .runtime/commandbox/cfml/modules/testbox-cli/models
+          .runtime/commandbox/cfml/modules/testbox-cli/templates
+          .runtime/commandbox/artifacts
+          .runtime/commandbox/serverJREs
+          .deps/boxlang-runtime
+        key: worker-lab-v1-${{ runner.os }}-${{ runner.arch }}-cb6.3.5-bl1.18.0-jre21.0.12.1+1-${{ hashFiles('box.json', 'box-lock.json', 'dependencies.json', 'server.json', 'ci/cache-manifest.json', 'ci/summary/box.json', '.github/actions/prepare/action.yml', 'scripts/Lab.bx', 'scripts/Cache.bx', 'scripts/Summary.bx', 'scripts/summary.bxs', 'scripts/lab.bxs', '.github/workflows/demo.yml', 'tests/resources/ProcessProvider.bx') }}-bootstrap
+    - name: Restore immutable application dependency data
+      id: dependencies
+      if: inputs.summary-only != 'true'
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: |
+          .deps/testbox
+          .runtime/boxlang/modules/bx-compat-cfml
+          .runtime/tooling/modules/bx-compat-cfml
+        key: ${{ steps.bootstrap.outputs.cache-primary-key }}-dependencies
+    - name: Restore minimal summary bootstrap after an exact full-cache miss
+      id: minimal
+      if: inputs.summary-only == 'true' && steps.bootstrap.outputs.cache-hit != 'true'
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: |
+          .runtime/commandbox/lib
+          .runtime/commandbox/cfml/box.json
+          .runtime/commandbox/cfml/license.txt
+          .runtime/commandbox/cfml/system
+          .runtime/commandbox/cfml/libExt
+          .runtime/commandbox/cfml/modules/commandbox-boxlang
+          .runtime/commandbox/cfml/modules/commandbox-cfconfig
+          .runtime/commandbox/cfml/modules/commandbox-dotenv
+          .runtime/commandbox/cfml/modules/commandbox-update-check
+          .runtime/commandbox/cfml/modules/coldbox-cli
+          .runtime/commandbox/cfml/modules/contentbox-cli
+          .runtime/commandbox/cfml/modules/testbox-cli/ModuleConfig.cfc
+          .runtime/commandbox/cfml/modules/testbox-cli/box.json
+          .runtime/commandbox/cfml/modules/testbox-cli/commands
+          .runtime/commandbox/cfml/modules/testbox-cli/models
+          .runtime/commandbox/cfml/modules/testbox-cli/templates
+          .runtime/commandbox/artifacts
+          .runtime/commandbox/serverJREs
+          .deps/boxlang-runtime
+        key: ${{ steps.bootstrap.outputs.cache-primary-key }}-minimal-summary
+    - uses: Ortus-Solutions/setup-commandbox@157ba183d42a6f1abfcbaa4c303072f95837f417
+      with:
+        version: "6.3.5"
+        warmup: "false"
+    - name: Prepare isolated home
+      shell: bash
+      run: mkdir -p "$COMMANDBOX_HOME"
+    - name: Install pinned application packages on an exact or partial miss
+      if: inputs.summary-only != 'true' && (steps.bootstrap.outputs.cache-hit != 'true' || steps.dependencies.outputs.cache-hit != 'true')
+      shell: bash
+      run: box install
+    - name: Install only native summary packages on a miss
+      if: inputs.summary-only == 'true' && steps.bootstrap.outputs.cache-hit != 'true' && steps.minimal.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: ci/summary
+      run: box install
+    - name: Provision one pinned registered JRE for both bridge and server
+      if: steps.bootstrap.outputs.cache-hit != 'true' && steps.minimal.outputs.cache-hit != 'true'
+      shell: bash
+      run: box server java install ID=openjdk21_jre_x64_linux_hotspot_jdk-21.0.12.1+1
+    - name: Validate source/runtime integrity and rebuild checkout mappings
+      if: inputs.summary-only != 'true'
+      env:
+        LAB_SETUP_CACHE_KEY: ${{ steps.bootstrap.outputs.cache-primary-key }}
+        LAB_BOOTSTRAP_CACHE_HIT: ${{ steps.bootstrap.outputs.cache-hit == 'true' }}
+        LAB_DEPENDENCY_CACHE_HIT: ${{ steps.dependencies.outputs.cache-hit == 'true' }}
+      shell: bash
+      run: box run-script setup
+    - name: Validate the minimal summary runtime
+      if: inputs.summary-only == 'true'
+      env:
+        LAB_SETUP_CACHE_KEY: ${{ steps.bootstrap.outputs.cache-primary-key }}
+        LAB_BOOTSTRAP_CACHE_HIT: ${{ steps.bootstrap.outputs.cache-hit == 'true' }}
+        LAB_MINIMAL_CACHE_HIT: ${{ steps.minimal.outputs.cache-hit == 'true' }}
+      shell: bash
+      working-directory: ci/summary
+      run: box boxlang cli ../../scripts/summary.bxs validate-runtime
+    - name: Save public immutable bootstrap after successful app validation
+      if: inputs.summary-only != 'true' && steps.bootstrap.outputs.cache-hit != 'true'
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: |
+          .runtime/commandbox/lib
+          .runtime/commandbox/cfml/box.json
+          .runtime/commandbox/cfml/license.txt
+          .runtime/commandbox/cfml/system
+          .runtime/commandbox/cfml/libExt
+          .runtime/commandbox/cfml/modules/commandbox-boxlang
+          .runtime/commandbox/cfml/modules/commandbox-cfconfig
+          .runtime/commandbox/cfml/modules/commandbox-dotenv
+          .runtime/commandbox/cfml/modules/commandbox-update-check
+          .runtime/commandbox/cfml/modules/coldbox-cli
+          .runtime/commandbox/cfml/modules/contentbox-cli
+          .runtime/commandbox/cfml/modules/testbox-cli/ModuleConfig.cfc
+          .runtime/commandbox/cfml/modules/testbox-cli/box.json
+          .runtime/commandbox/cfml/modules/testbox-cli/commands
+          .runtime/commandbox/cfml/modules/testbox-cli/models
+          .runtime/commandbox/cfml/modules/testbox-cli/templates
+          .runtime/commandbox/artifacts
+          .runtime/commandbox/serverJREs
+          .deps/boxlang-runtime
+        key: ${{ steps.bootstrap.outputs.cache-primary-key }}
+    - name: Save verified immutable application dependencies
+      if: inputs.summary-only != 'true' && steps.dependencies.outputs.cache-hit != 'true'
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: |
+          .deps/testbox
+          .runtime/boxlang/modules/bx-compat-cfml
+          .runtime/tooling/modules/bx-compat-cfml
+        key: ${{ steps.dependencies.outputs.cache-primary-key }}
+    - name: Save minimal summary data without poisoning the full-app cache
+      if: inputs.summary-only == 'true' && steps.bootstrap.outputs.cache-hit != 'true' && steps.minimal.outputs.cache-hit != 'true'
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: |
+          .runtime/commandbox/lib
+          .runtime/commandbox/cfml/*
+          !.runtime/commandbox/cfml/modules
+          .runtime/commandbox/cfml/modules/*
+          !.runtime/commandbox/cfml/modules/testbox-cli
+          .runtime/commandbox/cfml/modules/testbox-cli/*
+          !.runtime/commandbox/cfml/modules/testbox-cli/testbox
+          .runtime/commandbox/artifacts
+          .runtime/commandbox/serverJREs
+          .deps/boxlang-runtime
+        key: ${{ steps.minimal.outputs.cache-primary-key }}
