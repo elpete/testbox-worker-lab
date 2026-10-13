@@ -18,3 +18,5 @@ Raw reports/screenshots are produced under ignored `results/`; hosted CI uploads
 Hosted CI status is available in the repository Actions tab. Do not infer a hosted pass from this workflow being present; verify the run’s `head_sha` equals the repository commit before presenting it. This page records only completed local observations; the final handoff identifies the verified hosted run or its blocker.
 
 Unverified or outside scope: Adobe/Lucee worker compatibility, production databases/services, interactive terminal animation appearance, a statistically controlled performance benchmark, public site deployment. No deployment is configured.
+
+The initial public workflow passed all six hosted jobs at commit `968e11e80445ea0a8972307b555f7fac3182262a`: [run 38432119804](https://github.com/elpete/testbox-worker-lab/actions/runs/38432119804). The final handoff verifies CI again after the workflow-only update to current Actions release commits and fixed Ubuntu 24.04.
