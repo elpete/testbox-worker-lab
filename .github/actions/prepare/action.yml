@@ -27,11 +27,6 @@ runs:
           .runtime/commandbox/cfml/modules/commandbox-update-check
           .runtime/commandbox/cfml/modules/coldbox-cli
           .runtime/commandbox/cfml/modules/contentbox-cli
-          .runtime/commandbox/cfml/modules/testbox-cli/ModuleConfig.cfc
-          .runtime/commandbox/cfml/modules/testbox-cli/box.json
-          .runtime/commandbox/cfml/modules/testbox-cli/commands
-          .runtime/commandbox/cfml/modules/testbox-cli/models
-          .runtime/commandbox/cfml/modules/testbox-cli/templates
           .runtime/commandbox/artifacts
           .runtime/commandbox/serverJREs
           .deps/boxlang-runtime
@@ -43,6 +38,7 @@ runs:
       with:
         path: |
           .deps/testbox
+          .deps/testbox-cli
           .runtime/boxlang/modules/bx-compat-cfml
           .runtime/tooling/modules/bx-compat-cfml
         key: ${{ steps.bootstrap.outputs.cache-primary-key }}-dependencies
@@ -63,11 +59,6 @@ runs:
           .runtime/commandbox/cfml/modules/commandbox-update-check
           .runtime/commandbox/cfml/modules/coldbox-cli
           .runtime/commandbox/cfml/modules/contentbox-cli
-          .runtime/commandbox/cfml/modules/testbox-cli/ModuleConfig.cfc
-          .runtime/commandbox/cfml/modules/testbox-cli/box.json
-          .runtime/commandbox/cfml/modules/testbox-cli/commands
-          .runtime/commandbox/cfml/modules/testbox-cli/models
-          .runtime/commandbox/cfml/modules/testbox-cli/templates
           .runtime/commandbox/artifacts
           .runtime/commandbox/serverJREs
           .deps/boxlang-runtime
@@ -125,11 +116,6 @@ runs:
           .runtime/commandbox/cfml/modules/commandbox-update-check
           .runtime/commandbox/cfml/modules/coldbox-cli
           .runtime/commandbox/cfml/modules/contentbox-cli
-          .runtime/commandbox/cfml/modules/testbox-cli/ModuleConfig.cfc
-          .runtime/commandbox/cfml/modules/testbox-cli/box.json
-          .runtime/commandbox/cfml/modules/testbox-cli/commands
-          .runtime/commandbox/cfml/modules/testbox-cli/models
-          .runtime/commandbox/cfml/modules/testbox-cli/templates
           .runtime/commandbox/artifacts
           .runtime/commandbox/serverJREs
           .deps/boxlang-runtime
@@ -140,6 +126,7 @@ runs:
       with:
         path: |
           .deps/testbox
+          .deps/testbox-cli
           .runtime/boxlang/modules/bx-compat-cfml
           .runtime/tooling/modules/bx-compat-cfml
         key: ${{ steps.dependencies.outputs.cache-primary-key }}
@@ -153,7 +140,6 @@ runs:
           !.runtime/commandbox/cfml/modules
           .runtime/commandbox/cfml/modules/*
           !.runtime/commandbox/cfml/modules/testbox-cli
-          .runtime/commandbox/cfml/modules/testbox-cli/*
           !.runtime/commandbox/cfml/modules/testbox-cli/testbox
           .runtime/commandbox/artifacts
           .runtime/commandbox/serverJREs

@@ -13,17 +13,13 @@
     ".runtime/commandbox/cfml/modules/commandbox-update-check",
     ".runtime/commandbox/cfml/modules/coldbox-cli",
     ".runtime/commandbox/cfml/modules/contentbox-cli",
-    ".runtime/commandbox/cfml/modules/testbox-cli/ModuleConfig.cfc",
-    ".runtime/commandbox/cfml/modules/testbox-cli/box.json",
-    ".runtime/commandbox/cfml/modules/testbox-cli/commands",
-    ".runtime/commandbox/cfml/modules/testbox-cli/models",
-    ".runtime/commandbox/cfml/modules/testbox-cli/templates",
     ".runtime/commandbox/artifacts",
     ".runtime/commandbox/serverJREs",
     ".deps/boxlang-runtime"
   ],
   "dependencies": [
     ".deps/testbox",
+    ".deps/testbox-cli",
     ".runtime/boxlang/modules/bx-compat-cfml",
     ".runtime/tooling/modules/bx-compat-cfml"
   ],

@@ -61,10 +61,34 @@ class {
         // Installed CommandBox already launched this helper; avoid another CLI JVM for `version`.
         if ( len(getSystemSetting("BOX_SERVER_JVM_JAVAHOME","")) && !createObject("java","java.lang.System").getProperty("java.runtime.version").startsWith("21.0.12.1+1") ) throw(message="Managed CI runtime differs from the pinned shared JRE")
         var cliRoot = home & "/cfml/modules/testbox-cli"
+        var cachedCLI = variables.root & ".deps/testbox-cli"
+        // A fresh CommandBox engine can re-extract its bundled released CLI.
+        // Keep the immutable prerelease sources outside that mutable bootstrap location.
+        var cliParts = ["ModuleConfig.cfc","box.json","commands","models","templates"]
+        if (directoryExists(cachedCLI)) {
+            for (var path in variables.pins.cli.integrity) {
+                if (!fileExists(cachedCLI & "/" & path) || lCase(hash(fileReadBinary(cachedCLI & "/" & path),"SHA-256")) != variables.pins.cli.integrity[path]) throw(message="Pinned cached CLI source differs: " & path)
+            }
+            ensureDirectory(cliRoot)
+            for (var part in cliParts) {
+                var destination = cliRoot & "/" & part
+                if (directoryExists(destination)) directoryDelete(destination,true)
+                else if (fileExists(destination)) fileDelete(destination)
+                if (directoryExists(cachedCLI & "/" & part)) directoryCopy(cachedCLI & "/" & part,destination,true)
+                else fileCopy(cachedCLI & "/" & part,destination)
+            }
+        }
         for ( var item in [ {key:"testbox",dir:variables.root & ".deps/testbox"}, {key:"cli",dir:cliRoot} ] ) {
             for ( var path in variables.pins[ item.key ].integrity ) {
                 var fullPath = item.dir & "/" & path
                 if ( !fileExists( fullPath ) || lCase( hash( fileReadBinary( fullPath ), "SHA-256" ) ) != variables.pins[ item.key ].integrity[ path ] ) throw( message="Pinned source differs: " & fullPath & ". Run box install --force in the isolated home." )
+            }
+        }
+        if (!directoryExists(cachedCLI)) {
+            directoryCreate(cachedCLI,true)
+            for (var part in cliParts) {
+                if (directoryExists(cliRoot & "/" & part)) directoryCopy(cliRoot & "/" & part,cachedCLI & "/" & part,true)
+                else fileCopy(cliRoot & "/" & part,cachedCLI & "/" & part)
             }
         }
         makeLink( variables.root & ".deps/testbox", variables.root & "testbox" )
