@@ -134,7 +134,7 @@ class {
     function smoke() {
         for ( var selection in [ {name:"serial", workers:0}, {name:"parallel-2", workers:2}, {name:"parallel-4", workers:4} ] ) {
             var destination = "results/" & selection.name & ".json"
-            var args = [ "testbox", "run", "runner=" & ( selection.workers ? "parallel" : "serial" ), "outputFile=" & destination ]
+            var args = [ "testbox", "run", "runner=" & ( selection.workers ? "parallel" : "serial" ), "options:demoDelayMs=300", "outputFile=" & destination ]
             if ( selection.workers ) args.append( [ "workers=" & selection.workers, "interactive=false" ], true )
             if ( commandBox( args ).exitCode != 0 ) throw( message="CLI failed: " & selection.name )
             checkReport( destination )
@@ -142,7 +142,7 @@ class {
         var shardDirectory = variables.root & "results/shards"
         if ( directoryExists( shardDirectory ) ) directoryDelete( shardDirectory, true )
         for ( var index = 1; index <= 2; index++ ) {
-            if ( commandBox( [ "testbox", "run", "runner=serial", "shard=" & index & "/2", "shardRunId=boxlang-smoke", "outputFile=results/shards/" & index & ".json" ] ).exitCode != 0 ) throw( message="HTTP shard failed" )
+            if ( commandBox( [ "testbox", "run", "runner=serial", "options:demoDelayMs=300", "shard=" & index & "/2", "shardRunId=boxlang-smoke", "outputFile=results/shards/" & index & ".json" ] ).exitCode != 0 ) throw( message="HTTP shard failed" )
         }
         if ( commandBox( [ "testbox", "merge", "directory=results/shards", "outputFile=results/combined.json" ] ).exitCode != 0 ) throw( message="Native merge failed" )
         checkReport( "results/combined.json" )
@@ -171,17 +171,121 @@ class {
         if ( action == "setup" ) { setup(); return }
         if ( action == "audit" ) { auditSource(); return }
         if ( action == "smoke" ) { smoke(); return }
+        if ( action == "measure-case" ) { measureCase( args ); return }
+        if ( action == "ci-summary" ) { ciSummary(); return }
         if ( action == "verify-report" ) { if ( args.len() != 1 ) throw( message="verify-report requires a JSON report path" ); checkReport( args[ 1 ] ); return }
         if ( action == "verify-merge" ) { verifyMerge(); return }
         if ( action == "wait-ready" ) { waitReady(); return }
         if ( action == "contracts" ) { include "../tests/contracts.bxs"; return }
         if ( action == "browser-setup" ) { browserSetup(); return }
         if ( action == "browser" ) {
-            if ( commandBox( [ "boxlang", "cli", variables.root & "scripts/lab.bxs", "browser-run" ], false, { BX_PLAYWRIGHT_HOME: variables.root & ".runtime/playwright" } ).exitCode != 0 ) throw( message="BoxLang browser verification failed" )
+            if ( commandBox( [ "boxlang", "cli", variables.root & "scripts/lab.bxs", "browser-run" ], false, { BX_PLAYWRIGHT_HOME: variables.root & ".runtime/playwright", LAB_BROWSER_LONG: args.len() && args[1] == "long" ? "true" : "false" } ).exitCode != 0 ) throw( message="BoxLang browser verification failed" )
             return
         }
         if ( action == "browser-run" ) { include "browser.bxs"; return }
         throw( message="Unknown action: " & action )
+    }
+
+    /** Real CommandBox commands with explicit measured lifecycle boundaries. */
+    function clockMs() { return createObject("java","java.lang.System").nanoTime() / 1000000 }
+
+    function measureCase( required array args ) {
+        var mode = args.len() ? args[1] : "serial"
+        var delayMs = args.len() > 1 ? args[2] : 10000
+        if ( !listFind("serial,parallel-2,parallel-4,local-shards,shard-1,shard-2,shard-3,shard-4",mode) || !isNumeric(delayMs) || delayMs != int(delayMs) || delayMs < 0 || delayMs > 30000 ) throw(message="Choose serial, parallel-2/4, local-shards or shard-1/2/3/4 and an integer delay of 0–30000 ms")
+        delayMs = int(delayMs)
+        ensureDirectory(variables.root & "results/measurements")
+        var identity = getSystemSetting("GITHUB_RUN_ID","local") & "-" & getSystemSetting("GITHUB_RUN_ATTEMPT","1") & "-" & getSystemSetting("GITHUB_SHA",createUUID())
+        var timing = {mode:mode, delayMs:delayMs, simulatedWait:true, runId:identity, boundary:"Before box server start through box server stop; includes CLI processes, server/JVM startup, readiness, execution and shutdown; excludes package install and outer BoxLang helper bootstrap"}
+        // Ensure a real cold server process. This preflight stop is outside the boundary.
+        if ( commandBox(["server","stop"]).exitCode != 0 ) throw(message="Cannot reset the owned measurement server")
+        var started = clockMs()
+        try {
+            if ( commandBox(["server","start","--noSaveSettings"]).exitCode != 0 ) throw(message="Measurement server failed to start")
+            waitReady()
+            timing.startReadyMs = clockMs() - started
+            var executionStarted = clockMs()
+            if ( mode == "local-shards" ) {
+                var directory = variables.root & "results/measurement-shards"
+                if ( directoryExists(directory) ) directoryDelete(directory,true)
+                ensureDirectory(directory)
+                var children = []
+                try {
+                    for ( var shard = 1; shard <= 4; shard++ ) {
+                        var command = createObject("java","java.util.ArrayList").init()
+                        for ( var arg in [getSystemSetting("LAB_COMMANDBOX_BINARY","box"),"testbox","run","runner=serial","shard=" & shard & "/4","shardRunId=" & identity,"options:demoDelayMs=" & delayMs,"outputFile=" & directory & "/" & shard & ".json"] ) command.add(javaCast("string",arg))
+                        var builder = createObject("java","java.lang.ProcessBuilder").init(command)
+                        builder.directory(createObject("java","java.io.File").init(variables.root))
+                        builder.redirectErrorStream(true)
+                        builder.redirectOutput(createObject("java","java.io.File").init(variables.root & "results/measurements/local-shard-" & shard & ".log"))
+                        children.append(builder.start())
+                    }
+                    for ( var child in children ) if ( child.waitFor() != 0 ) throw(message="Local HTTP shard failed; inspect measurement logs")
+                } finally {
+                    for ( var child in children ) if ( child.isAlive() ) { child.destroyForcibly(); child.waitFor() }
+                }
+                timing.concurrentShardProcessesMs = clockMs() - executionStarted
+                if ( commandBox(["testbox","merge","directory=" & directory,"outputFile=results/measurements/local-shards.json"]).exitCode != 0 ) throw(message="Local native shard merge failed")
+            } else {
+                var command = ["testbox","run","runner=" & (mode.startsWith("parallel") ? "parallel" : "serial"),"options:demoDelayMs=" & delayMs,"outputFile=results/measurements/" & mode & ".json"]
+                if ( mode.startsWith("parallel") ) command.append(["workers=" & listLast(mode,"-"),"interactive=false"],true)
+                if ( mode.startsWith("shard") ) command.append(["shard=" & listLast(mode,"-") & "/4","shardRunId=" & identity],true)
+                if ( commandBox(command).exitCode != 0 ) throw(message="Measured CLI run failed: " & mode)
+            }
+            timing.testProcessesAndMergeMs = clockMs() - executionStarted
+            var report = JSONDeserialize(fileRead(variables.root & "results/measurements/" & mode & ".json"))
+            if ( mode.startsWith("shard-") ) {
+                if ( report.totalPass != 8 || report.totalFail || report.totalError || report.totalSkipped || report.bundleStats.len() != 2 ) throw(message="Assigned shard did not pass its exact two bundles/eight tests")
+            } else checkReport("results/measurements/" & mode & ".json")
+            timing.runnerMs = report.totalDuration
+            timing.totalPass = report.totalPass
+            timing.bundleCount = report.bundleStats.len()
+        } finally {
+            var stopStarted = clockMs()
+            // Always attempt cleanup, even when startup returned a failure after provisioning.
+            var stopped = commandBox(["server","stop"])
+            timing.serverStopMs = clockMs() - stopStarted
+            timing.lifecycleMs = clockMs() - started
+            if ( stopped.exitCode != 0 ) throw(message="Measurement server failed to stop")
+        }
+        fileWrite(variables.root & "results/measurements/" & mode & "-timing.json",JSONSerialize(timing))
+        println(JSONSerialize(timing))
+    }
+
+    function ciSummary() {
+        var directory = variables.root & "results/ci-input"
+        var timings = []
+        for ( var path in directoryList(directory,true,"path","*-timing.json") ) timings.append(JSONDeserialize(fileRead(path)))
+        if ( timings.len() != 6 ) throw(message="Require serial, parallel-4 and four shard lifecycle timings")
+        var serial = timings.filter(t => t.mode == "serial")[1]
+        var workers = timings.filter(t => t.mode == "parallel-4")[1]
+        if ( serial.delayMs != 10000 || workers.delayMs != serial.delayMs || serial.totalPass != 32 || workers.totalPass != 32 ) throw(message="Comparison workloads differ")
+        for ( var timing in timings ) if ( timing.delayMs != serial.delayMs ) throw(message="Shard delay differs")
+        var client = createObject("java","java.net.http.HttpClient").newHttpClient()
+        var endpoint = "https://api.github.com/repos/" & getSystemSetting("GITHUB_REPOSITORY") & "/actions/runs/" & getSystemSetting("GITHUB_RUN_ID") & "/jobs?per_page=100"
+        var call = createObject("java","java.net.http.HttpRequest").newBuilder(createObject("java","java.net.URI").init(endpoint)).header("Authorization","Bearer " & getSystemSetting("GITHUB_TOKEN")).header("Accept","application/vnd.github+json").header("X-GitHub-Api-Version","2022-11-28").timeout(createObject("java","java.time.Duration").ofSeconds(30)).GET().build()
+        var response = client.send(call,createObject("java","java.net.http.HttpResponse$BodyHandlers").ofString())
+        if ( response.statusCode() != 200 ) throw(message="Cannot read hosted timing boundaries: HTTP " & response.statusCode())
+        var jobs = JSONDeserialize(response.body()).jobs
+        var shardJobs = jobs.filter(j => j.name.startsWith("shards ("))
+        var baselineJob = jobs.filter(j => j.name == "comparison (serial)")[1]
+        var workerJob = jobs.filter(j => j.name == "comparison (parallel-4)")[1]
+        var mergeJob = jobs.filter(j => j.name == "merge")[1]
+        var epoch = instant => createObject("java","java.time.Instant").parse(instant).toEpochMilli()
+        if ( shardJobs.len() != 4 ) throw(message="Require four hosted shard jobs")
+        for ( var job in shardJobs ) if ( job.conclusion != "success" ) throw(message="Incomplete hosted shard")
+        if ( baselineJob.conclusion != "success" || workerJob.conclusion != "success" || mergeJob.conclusion != "success" ) throw(message="Incomplete hosted comparison")
+        var firstShard = shardJobs.map(j => epoch(j.started_at)).min()
+        var summary = {commit:getSystemSetting("GITHUB_SHA"),delayMs:10000,syntheticWait:true,timings:timings,
+            serialJobMs:epoch(baselineJob.completed_at)-epoch(baselineJob.started_at),workerJobMs:epoch(workerJob.completed_at)-epoch(workerJob.started_at),
+            shardPathMs:epoch(mergeJob.completed_at)-firstShard,
+            hostedBoundary:"Job start through completion; serial/worker jobs include install, helper/bootstrap and artifact upload. Shard path starts at earliest shard job start and ends after merge job completes; includes provisioning, uploads, scheduling gap and merge. Excludes initial runner queue and this summary job. Jobs use different machines; one observation, not a controlled production benchmark."}
+        var text = "## Measured synthetic-latency comparison" & char(10) & char(10) & "32 real tests / eight bundles / 10 seconds deliberate waiting per test. Equivalent passing results verified." & char(10) & char(10) & "| Boundary | Serial | Four workers | Four hosted shards + merge |" & char(10) & "| --- | ---: | ---: | ---: |" & char(10) & "| Full hosted job/path (seconds) | " & round(summary.serialJobMs/1000,2) & " | " & round(summary.workerJobMs/1000,2) & " | " & round(summary.shardPathMs/1000,2) & " |" & char(10) & "| CommandBox/server lifecycle (seconds) | " & round(serial.lifecycleMs/1000,2) & " | " & round(workers.lifecycleMs/1000,2) & " | See each shard timing; full path above includes merge |" & char(10) & char(10) & summary.hostedBoundary & char(10) & char(10) & "Workers share one CI machine and create private JVMs. Shards use four independent CI machines. TestBox's combined duration is the longest shard test duration, not the hosted path." & char(10)
+        ensureDirectory(variables.root & "results/comparison")
+        fileWrite(variables.root & "results/comparison/summary.json",JSONSerialize(summary))
+        fileWrite(variables.root & "results/comparison/summary.md",text)
+        fileAppend(getSystemSetting("GITHUB_STEP_SUMMARY"),text)
+        println(text)
     }
 
     /** CommandBox installs the browser module and launches its native BoxLang installer. */

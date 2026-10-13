@@ -1,12 +1,12 @@
-# Five-minute demo with Eric and Luis
+# A measured demo with Eric and Luis
 
-Prepare in a normal checkout with installed CommandBox 6.3.5+. Set the isolated `COMMANDBOX_HOME` from the README, then `box install`, `box run-script setup`, and `box server start`. Keep a passing Actions run open. Use the same home in your second terminal.
+Prepare with installed CommandBox 6.3.5+, the README's isolated home exports, `box install` and `box run-script setup`. Run `measure:serial`, `measure:four` and `measure:shards` sequentially beforehand. They start/stop the owned server and leave genuine timing receipts. The serial workload deliberately takes over five minutes; budget time or show its completed receipt while a four-way run executes live. Keep a passing Actions run and its **timing-comparison** summary open.
 
-1. **Luis introduces the workload.** Eight parcel bundles, 32 real tests and deliberate pauses. No linear-speedup promise.
-2. **Eric shows RUN.** Open `/tests/runner.parallel.bxm`, choose two Workers and Run All. Point to preparation, discovery, interleaved specs and retained final rows.
-3. **Luis compares.** The homepage runs standard serial and four real worker JVMs. Both must show 32/32. Discuss startup and compilation cost; download real JSON.
-4. **Eric uses CommandBox.** Run `box testbox run runner=parallel workers=4 interactive=false`. Highlight native bundle progress and timing table. There is no Java/JAR wrapper command; the server was started by `box server start`.
-5. **Luis finishes in CI.** Show four independent shards, the merge job and combined artifact. Explain run/attempt/SHA identity and why missing, duplicate or mixed-run reports cannot pass.
-6. **Optional Stop.** In RUN start two workers, stop during startup and wait for confirmed cleanup. Cancellation means incomplete execution.
+1. **Luis explains the workload.** Eight independent parcel bundles, four real tests each. Each test waits 10 seconds to simulate a slow external service. Serial contains 320 seconds of waiting; four balanced groups contain 80 seconds each, before startup/compilation/cleanup. These are expected wait budgets, not measured results or production speedup claims.
+2. **Eric shows long RUN.** `box server start`, then open `/tests/runner.parallel.bxm`, choose four Workers and Run All. Watch preparation and interleaved specs for roughly 90–120 seconds, depending on the machine. Contrast the retained rows with the measured serial receipt.
+3. **Luis compares boundaries.** The homepage Demo mode performs serial then workers on the already-running server and exports real runner and HTTP elapsed. If time is limited, select Quick (300 ms) to explain the UI, and use the completed long receipts for the performance discussion. Quick mode can be slower with workers because overhead dominates.
+4. **Eric shows CLI.** `box testbox run runner=parallel workers=4 interactive=false`. The default is the long profile. Point to native progress/timing. For the full lifecycle comparison use `box run-script measure:four` with the server stopped; it includes actual CommandBox process and server startup/shutdown. The local four-shard helper uses four concurrent HTTP requests to one server, not four machines.
+5. **Luis finishes in CI.** Open the separate long serial/four-worker comparison jobs, four independent shard jobs and native merge. Read the generated **timing-comparison** table. Full hosted shard-path time includes provisioning, uploads, dependency scheduling and merge; the combined longest-shard test duration does not. Compare equivalent 32/32 results and the actual elapsed ratios, without promising linear scaling.
+6. **Optional Stop.** Start long RUN again and stop during a wait. Retain progress until owned child JVMs confirm cleanup. Cancelled execution is incomplete.
 
-Afterward: `box server stop`. Setup and verification are BoxLang package scripts invoked through CommandBox. The runtime/JVM processes remain implementation details of CommandBox and the worker provider.
+Afterward: `box server stop`. Prerelease pins are unchanged. All executable demo and measurement tooling is BoxLang; installed CommandBox owns setup and server lifecycle. No private service or real external API is contacted to create the simulated latency.

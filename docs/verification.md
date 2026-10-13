@@ -1,5 +1,7 @@
 # Verification scope
 
+The long demo uses 10000 ms of deliberate waiting per test; quick browser/CLI correctness uses 300 ms. Both execute the same eight bundles and 32 real tests. Current verification includes long serial/four-worker lifecycle measurements, four concurrent local HTTP shards plus native merge, long native RUN at four workers, and separate long hosted serial/worker/shard jobs. Receipts distinguish runner, HTTP, CommandBox/server lifecycle and full hosted job/path boundaries. Final exact-commit results and actual timings are recorded in the handoff and generated **timing-comparison** artifact, not inferred from theoretical wait budgets.
+
 The current workflow requires installed CommandBox. `box install` owns dependency installation; `box run-script setup` invokes the BoxLang helper through the official bridge; `box server start/stop` own the server lifecycle. No manual runtime-JAR download or launch is part of setup or CI. No Python or authored shell/Node tooling is required.
 
 The CommandBox correction was rehearsed from a clean checkout-local home on macOS, with CommandBox 6.3.5:
@@ -10,7 +12,7 @@ The CommandBox correction was rehearsed from a clean checkout-local home on macO
 - Serial, two and four workers: 32/32 and exactly eight bundles.
 - Two real local HTTP shards merged to 32/32; missing/duplicate/mixed-run rejection and real failure preservation.
 - Native RUN/browser comparison at desktop/mobile, successful Stop and no unexpected errors, driven by BoxLang through CommandBox.
-- Exact-commit hosted CI: worker/browser job, four independent shards and validated merge; inspect actual artifacts.
+- Exact-commit hosted CI: worker/browser job, separate long serial/four-worker comparison jobs, four independent shards, validated merge and timestamp-based summary; inspect actual artifacts.
 
 Local installation, repeated setup, freshly recreated server provisioning, source audit, CLI 32/32 runs at serial/two/four workers, two-shard merge and rejection contracts passed. Native browser checks passed comparison/JSON download, desktop/mobile, RUN 32/32 on two workers and cancellation. The server was stopped through CommandBox. CI is verified separately in the final handoff against the published commit.
 

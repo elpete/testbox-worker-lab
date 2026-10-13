@@ -6,6 +6,10 @@ let stream,
   began,
   baseline,
   parallel,
+  baselineWallMs,
+  parallelWallMs,
+  parallelBegan,
+  delayMs,
   active = false;
 const workers = new Map();
 const seconds = (ms) => (ms / 1000).toFixed(2) + " s";
@@ -17,6 +21,7 @@ function lock(on) {
   active = on;
   $("run").disabled = on;
   $("workers").disabled = on;
+  $("profile").disabled = on;
   $("stop").disabled = !on || !stream;
 }
 function row(id) {
@@ -78,6 +83,7 @@ function finish(error) {
 $("run").addEventListener("click", async () => {
   if (active) return;
   baseline = parallel = undefined;
+  delayMs = Number($("profile").value);
   $("export").disabled = true;
   workers.clear();
   $("timeline").replaceChildren();
@@ -88,6 +94,8 @@ $("run").addEventListener("click", async () => {
     "parallel-workers",
     "parallel-pass",
     "parallel-time",
+    "serial-wall",
+    "parallel-wall",
   ])
     $(id).textContent = "—";
   lock(true);
@@ -98,22 +106,25 @@ $("run").addEventListener("click", async () => {
   );
   status("Running standard serial baseline…");
   try {
-    const response = await fetch("tests/runner.bxm?reporter=json");
+    const response = await fetch(`tests/runner.bxm?reporter=json&demoDelayMs=${delayMs}`);
     if (!response.ok)
       throw Error("Serial runner returned HTTP " + response.status);
     baseline = await response.json();
+    baselineWallMs = performance.now() - began;
     $("serial-pass").textContent = passed(baseline);
     $("serial-time").textContent = seconds(baseline.totalDuration);
+    $("serial-wall").textContent = seconds(baselineWallMs);
     if (baseline.totalFail || baseline.totalError)
       throw Error("Serial baseline failed; inspect the downloaded report.");
     const count = Number($("workers").value);
     $("parallel-workers").textContent = count;
     status(`Starting ${count} isolated workers…`);
+    parallelBegan = performance.now();
     runId = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) =>
       b.toString(16).padStart(2, "0"),
     ).join("");
     stream = new EventSource(
-      `tests/runner.parallel.bxm?action=run&streaming=true&runId=${runId}&workers=${count}`,
+      `tests/runner.parallel.bxm?action=run&streaming=true&runId=${runId}&workers=${count}&demoDelayMs=${delayMs}`,
     );
     $("stop").disabled = false;
     for (const type of [
@@ -136,8 +147,10 @@ $("run").addEventListener("click", async () => {
     stream.addEventListener("testRunEnd", (event) => {
       const data = JSON.parse(event.data);
       parallel = data.results;
+      parallelWallMs = performance.now() - parallelBegan;
       $("parallel-pass").textContent = passed(parallel);
       $("parallel-time").textContent = seconds(parallel.totalDuration);
+      $("parallel-wall").textContent = seconds(parallelWallMs);
       const verified =
         parallel.passed && parallel.parallel?.coverageMatched === true;
       status(
@@ -146,7 +159,7 @@ $("run").addEventListener("click", async () => {
           : "Run incomplete or failed. Inspect the JSON report.",
       );
       $("comparison").textContent =
-        `This run: serial ${seconds(baseline.totalDuration)}, ${count} workers ${seconds(parallel.totalDuration)}. Includes startup and cleanup; repeat warmed runs before interpreting the difference.`;
+        `Measured HTTP elapsed: serial ${seconds(baselineWallMs)}, ${count} workers ${seconds(parallelWallMs)} (${(baselineWallMs / parallelWallMs).toFixed(2)}× ratio). ${delayMs} ms deliberate waiting per test. Includes compilation, worker JVM startup and cleanup; this server was already running. This is synthetic latency, not a production benchmark.`;
       finish();
     });
     stream.onerror = () =>
@@ -175,7 +188,7 @@ $("export").addEventListener("click", () => {
   const blob = new Blob(
     [
       JSON.stringify(
-        { recordedAt: new Date().toISOString(), baseline, parallel },
+        { recordedAt: new Date().toISOString(), delayMs, simulatedWait: true, baseline, parallel, baselineWallMs, parallelWallMs, boundary: "HTTP request through complete response/SSE result; already-running server, worker JVM startup and cleanup included, server provisioning excluded" },
         null,
         2,
       ),

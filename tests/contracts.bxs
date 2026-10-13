@@ -1,3 +1,4 @@
+request.parcelDelayMs = 1
 reports = []
 for ( index = 1; index <= 2; index++ ) {
     reports.append( new testbox.system.TestBox( bundles = [ "tests.fixtures.DeliberateFailure", "tests.specs.LocalQuotesSpec" ] )

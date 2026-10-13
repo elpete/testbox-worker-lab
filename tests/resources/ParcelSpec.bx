@@ -8,6 +8,6 @@ class extends="testbox.system.BaseSpec" {
         if ( directoryExists( variables.sandbox ) ) directoryDelete( variables.sandbox, true )
     }
     function pauseForDemo() {
-        sleep( val( getSystemSetting( "PARCEL_DELAY_MS", "300" ) ) )
+        sleep( request.keyExists( "parcelDelayMs" ) ? request.parcelDelayMs : val( getSystemSetting( "PARCEL_DELAY_MS", "10000" ) ) )
     }
 }

@@ -1,6 +1,6 @@
 # TestBox Worker Lab
 
-An original Parcel Dispatch application showing Eric Peterson’s parallel-worker work through **TestBox RUN, CommandBox CLI and GitHub Actions**. Eight bundles contain 32 real tests for quotes, express fees, guards and manifest files. A configurable 300 ms pause makes progress visible; this is a demonstration, not a production speedup benchmark.
+An original Parcel Dispatch application showing Eric Peterson’s parallel-worker work through **TestBox RUN, CommandBox CLI and GitHub Actions**. Eight independent bundles contain 32 real tests for quotes, express fees, guards and manifest files. The default deliberately waits **10 seconds per test** to model slow external-service latency: 320 seconds of serial waiting, or 80 seconds per group with four balanced workers/shards, before measured overhead. This is a synthetic concurrency demonstration, not a production benchmark.
 
 **Installed CommandBox is the entry point for installation, setup, server lifecycle and tests.** All authored executable tooling/application code is BoxLang. Presentation uses HTML/CSS/JavaScript. No Python, shell wrappers, npm manifests or authored Node tooling are required. There is no manual Java/JAR bootstrap.
 
@@ -44,7 +44,23 @@ box run-script verify:four
 
 Omit `interactive=false` in a supported interactive terminal for redrawn worker rows. Permanent logs and the native timing table are verified. `box run-script smoke` runs serial/two/four-worker and local HTTP shard/merge checks. `box run-script audit` guards the BoxLang-authored source boundary.
 
-Change `PARCEL_DELAY_MS` in `server.json` and restart for another workload; use `0` for fast correctness checks. Keep it identical for all comparisons/shards. Startup, compilation and cleanup can outweigh useful work; four workers need not beat two or serial.
+Change `PARCEL_DELAY_MS` in `server.json` and restart to change the native RUN/default CLI workload. Alternatively pass `options:demoDelayMs=300` to the actual CLI for quick validation, or any integer from 0 to 30000. The homepage selects Demo (10000 ms) or Quick (300 ms) and applies the same value to both runs. `/tests/runner.quick.parallel.bxm` is the quick native RUN view. `smoke` explicitly uses quick mode. Keep the delay identical for every comparison/shard; quick-mode startup/compilation can still outweigh useful work.
+
+## Measure startup and real elapsed time
+
+With the owned demo server stopped, run these sequentially:
+
+```sh
+box run-script measure:serial
+box run-script measure:four
+box run-script measure:shards
+```
+
+Each command starts the server through CommandBox, waits for real readiness, executes the full 10-second workload with actual CLI commands, validates exact passing coverage, and stops the server. JSON reports and separate `*-timing.json` receipts go to `results/measurements/`. Expect several minutes for serial and around two minutes per four-way case, with machine-dependent overhead. `measure:two` is available too. For a short rehearsal: `box boxlang cli scripts/lab.bxs measure-case local-shards 300`.
+
+The local shard measurement launches **four concurrent CLI processes against one local server**, then calls native merge. It includes CLI startup, concurrent HTTP execution, merge and server shutdown. It demonstrates partitioning and is not four independent hosted machines. The ordinary sequential two-shard commands below verify correctness; they do not demonstrate a wall-time reduction.
+
+Timing boundaries are explicit: TestBox runner duration; homepage HTTP elapsed with an already-running server; and CommandBox/server lifecycle elapsed from before `box server start` through `box server stop`. Lifecycle timing excludes dependency installation and the outer BoxLang helper bootstrap. CI also reports full hosted job/path elapsed, which includes those costs. No speedup threshold is asserted: equivalent results are required; measured ratios remain observations.
 
 ## Local shard and merge rehearsal
 
@@ -66,9 +82,10 @@ Missing, duplicate and mixed-run reports fail native merge. The contract runs a 
 ```sh
 box run-script browser:setup
 box run-script browser:test
+box run-script browser:long
 ```
 
-CommandBox installs the public, version-pinned `bx-playwright` module and runs its BoxLang browser installer. The browser suite is authored in BoxLang and exercises comparison, JSON download, desktop/mobile, native RUN at two workers, and Stop. Screenshots and receipts go under ignored `results/browser/`. The exact upstream tooltip exception `Please use show on visible elements` is recorded separately; unexpected errors fail verification.
+CommandBox installs the public, version-pinned `bx-playwright` module and runs its BoxLang browser installer. `browser:test` selects the quick comparison and quick native RUN at two workers, checking JSON download, desktop/mobile and Stop. `browser:long` runs the full 10-second native RUN workload at four workers and checks Stop again. Screenshots and receipts go under ignored `results/browser/`. The exact upstream tooltip exception `Please use show on visible elements` is recorded separately; unexpected errors fail verification.
 
 Playwright internally manages its vendor Node driver. Node/npm are not user prerequisites and no authored tooling runs through Node. The module archive uses a direct immutable vendor S3 object version. Browser modules/caches stay out of worker JVM homes.
 
@@ -97,6 +114,8 @@ Coverage recordings are not merged; `workers` and `shard` cannot be combined; sc
 
 `ProcessProvider.bx` starts one real BoxLang JVM per assigned batch, with private application state, runtime home and `java.io.tmpdir`. Each bundle owns UUID scratch files. Native `ProgressFile` callbacks supply events; genuine `runRaw().getMemento()` reports go to the coordinator for exact coverage verification. Cancellation signals all owned JVMs, uses one 30-second deadline, escalates if needed, confirms exit and removes scratch resources. Small diagnostic receipts remain in TestBox temporary storage.
 
-[The workflow](.github/workflows/demo.yml) uses the official CommandBox setup Action, immutable Actions commits, Ubuntu 24.04 and read-only permissions. Every job uses `box install`, `box run-script setup`, and CommandBox-managed server/test commands. Four independent shard jobs upload reports even on failure; an always-running merge verifies the complete selection. No site deployment is configured.
+[The workflow](.github/workflows/demo.yml) uses the official CommandBox setup Action, immutable Actions commits, Ubuntu 24.04 and read-only repository/Actions permissions. Every job uses `box install`, `box run-script setup`, and CommandBox-managed server/test commands. Separate serial/four-worker comparison jobs and four independent shard jobs execute the identical long profile. An always-running native merge verifies full coverage. A final BoxLang summary reads actual GitHub job timestamps and publishes **timing-comparison** JSON/Markdown plus the Actions step summary.
+
+That summary compares full serial and four-worker job time against the path from earliest shard-job start to merge-job completion, including dependencies, server startup, uploads, scheduling gap and merge. It excludes initial runner queue and the later summary job. Different runners and one observation are not a controlled benchmark. TestBox's combined longest-shard duration is shown separately from end-to-end hosted elapsed. No site deployment is configured.
 
 [Presenter walkthrough](docs/presenter.md) · [Verification scope](docs/verification.md). The final handoff identifies the passing exact-commit CI run. Original demo code is MIT; fetched dependencies retain their own licenses.

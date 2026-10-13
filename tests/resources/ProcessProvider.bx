@@ -8,6 +8,7 @@ class extends="testbox.system.parallel.WorkerProvider" {
         variables.root = expandPath( "/" )
         variables.handles = []
         variables.ownedDirectories = []
+        variables.delayMs = request.parcelDelayMs
         context.onProgress( "Preparing private JVM homes and parcel workspaces" )
     }
     struct function startWorker( required struct context ) {
@@ -32,7 +33,7 @@ class extends="testbox.system.parallel.WorkerProvider" {
         env.put( "PARCEL_SELECTION", dir & "/selection.json" )
         env.put( "PARCEL_PROGRESS", dir & "/progress.jsonl" )
         env.put( "PARCEL_RESULT", dir & "/result.json" )
-        env.put( "PARCEL_DELAY_MS", getSystemSetting( "PARCEL_DELAY_MS", "300" ) )
+        env.put( "PARCEL_DELAY_MS", variables.delayMs.toString() )
         env.put( "TMPDIR", dir )
         var handle = {dir:dir, cursor:0, started:getTickCount(), process:builder.start()}
         variables.handles.append( handle )

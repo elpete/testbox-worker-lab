@@ -1,0 +1,5 @@
+<bx:script>
+// Keep the quick profile on every request made by the native RUN IDE.
+url.demoDelayMs = 300
+include "runner.parallel.bxm"
+</bx:script>

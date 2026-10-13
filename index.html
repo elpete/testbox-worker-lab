@@ -46,6 +46,10 @@
         <div class="toolbar">
           <h2 id="lab-title">Parcel dispatch</h2>
           <div class="controls">
+            <label for="profile">Workload</label><select id="profile">
+              <option value="10000" selected>Demo · 10 s/test</option>
+              <option value="300">Quick · 300 ms/test</option>
+            </select>
             <label for="workers">Workers</label
             ><select id="workers">
               <option>1</option>
@@ -81,7 +85,8 @@
                 <th scope="col">Mode</th>
                 <th scope="col">Workers</th>
                 <th scope="col">Passed</th>
-                <th scope="col">Elapsed</th>
+                <th scope="col">Runner elapsed</th>
+                <th scope="col">HTTP elapsed</th>
               </tr>
             </thead>
             <tbody>
@@ -90,20 +95,23 @@
                 <td>1</td>
                 <td id="serial-pass">—</td>
                 <td id="serial-time">—</td>
+                <td id="serial-wall">—</td>
               </tr>
               <tr>
                 <th scope="row">Isolated workers</th>
                 <td id="parallel-workers">—</td>
                 <td id="parallel-pass">—</td>
                 <td id="parallel-time">—</td>
+                <td id="parallel-wall">—</td>
               </tr>
             </tbody>
           </table>
         </div>
         <p id="comparison" class="note">
-          Elapsed includes worker startup and cleanup. JVM compilation can
-          dominate this small workload. Repeat warmed runs before drawing
-          conclusions.
+          Demo mode deliberately waits 10 seconds per test: 320 seconds of
+          serial waiting, or 80 seconds per group at four workers, before overhead.
+          HTTP elapsed includes worker startup/cleanup; this server is already running.
+          CommandBox lifecycle and full hosted shard comparisons are measured separately in CI.
         </p>
         <details>
           <summary>What actually runs?</summary>
@@ -112,8 +120,10 @@
             uses the same <code>Runner</code>, <code>Coordinator</code>, and
             <code>ProgressFile</code> APIs as RUN and the CLI. A demo-owned
             provider launches one BoxLang JVM per worker. No results or worker
-            events are simulated. Each spec includes a configurable 300 ms
-            demonstration pause.
+            events are simulated. Each spec performs a real parcel assertion after
+            a configurable simulated external-service wait. Demo: 10 seconds;
+            quick validation: 300 ms. These gains illustrate latency concurrency,
+            not production CPU scaling.
           </p>
           <pre id="events" aria-label="Recent native events"></pre>
         </details>
@@ -148,8 +158,9 @@
           <div>
             <h3>GitHub Actions</h3>
             <p>
-              Four independent machines. Upload every report and verify the
-              complete selection.
+              Four independent machines, two bundles each. CI compares the full
+              serial job with the shard path including setup, uploads and merge.
+              Download the measured timing-comparison artifact.
             </p>
             <code>box testbox run runner=serial shard=1/4</code
             ><a
@@ -162,10 +173,10 @@
       </section>
       <section id="walkthrough" class="walkthrough">
         <div>
-          <h2>Show it in five minutes.</h2>
+          <h2>Let the workload run.</h2>
           <p>
-            Same workload. Three interfaces.<br />Keep the measured limits
-            visible.
+            Prepare the serial baseline beforehand.<br />Demo mode takes minutes;
+            quick mode validates the same assertions in seconds.
           </p>
         </div>
         <ol>
@@ -186,8 +197,9 @@
           </li>
           <li>
             <strong>Finish in CI.</strong> Open the four shard jobs and the
-            combined JSON artifact. Explain why a missing or duplicate report
-            makes the merge fail.
+            combined JSON and timing-comparison artifacts. Compare full job/path
+            elapsed, not just the longest shard’s test duration. Missing or
+            duplicate reports make merge fail.
           </li>
         </ol>
       </section>

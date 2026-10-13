@@ -1,6 +1,7 @@
 /** Browser QA authored in BoxLang; Java Playwright is exposed by bx-playwright. */
 ensureDirectory( variables.root & "results/browser" )
-manager = playwright( { headless: true, home: variables.root & ".runtime/playwright", viewport: { width: 1440, height: 1000 }, timeouts: { navigation: 120000, action: 120000 } } )
+longMode = getSystemSetting("LAB_BROWSER_LONG","false") == "true"
+manager = playwright( { headless: true, home: variables.root & ".runtime/playwright", viewport: { width: 1440, height: 1000 }, timeouts: { navigation: 900000, action: 900000 } } )
 try {
     page = manager.newPage()
     nativePage = page.getJava()
@@ -17,9 +18,12 @@ try {
         }
     } )
     base = getSystemSetting( "DEMO_URL", "http://127.0.0.1:8642" )
+    if ( !longMode ) {
     page.visit( base )
     if ( nativePage.title() != "Worker Lab · Parcel Dispatch" ) throw( message="Wrong comparison page" )
-    page.assertSee( "One workload." ).click( "##run" )
+    page.assertSee( "One workload." )
+    nativePage.selectOption("##profile","300")
+    page.click( "##run" )
     nativePage.waitForFunction( "() => document.querySelector('##status').textContent.startsWith('Complete.')" )
     page.assertText( "##serial-pass", "32/32" ).assertText( "##parallel-pass", "32/32" ).assertCount( ".worker", 4 )
     page.waitForDownload( () => page.click( "##export" ), variables.root & "results/browser/comparison.json" )
@@ -28,13 +32,15 @@ try {
     if ( page.evaluate( "document.documentElement.scrollWidth > innerWidth" ) ) throw( message="Mobile horizontal overflow" )
     page.screenshot( variables.root & "results/browser/mobile.png", { fullPage: true } )
     nativePage.setViewportSize( 1440, 1000 )
-    page.visit( base & "/tests/runner.parallel.bxm" )
+    }
+    page.visit( base & (longMode ? "/tests/runner.parallel.bxm" : "/tests/runner.quick.parallel.bxm") )
     if ( nativePage.title() != "TestBox Run IDE" ) throw( message="Wrong native RUN page" )
     nativePage.waitForFunction( "() => document.body.innerText.includes('32 specs')" )
-    page.fill( "##workerCount", "2" ).click( "button[data-bs-title='Run All (Ctrl/Cmd + Enter)']" )
+    page.fill( "##workerCount", longMode ? "4" : "2" ).click( "button[data-bs-title='Run All (Ctrl/Cmd + Enter)']" )
     nativePage.waitForFunction( "() => { const x = Alpine.$data(document.querySelector('[x-data]')); return !x.isRunning && x.metaGlobalStats.totalPass === 32; }" )
     runData = JSONDeserialize( JSONSerialize( page.evaluate( "() => { const x = Alpine.$data(document.querySelector('[x-data]')); return {stats:x.metaGlobalStats,progress:x.workerProgress}; }" ) ) )
-    if ( runData.stats.totalFail != 0 || runData.stats.totalError != 0 || runData.progress.workers.len() != 2 ) throw( message="RUN execution failed" )
+    if ( runData.stats.totalFail != 0 || runData.stats.totalError != 0 || runData.progress.workers.len() != (longMode ? 4 : 2) ) throw( message="RUN execution failed" )
+    if ( longMode && runData.stats.totalDuration < 80000 ) throw(message="Long RUN did not execute the expected 10-second wait profile")
     for ( worker in runData.progress.workers ) if ( worker.state != "completed" ) throw( message="RUN worker incomplete" )
     page.screenshot( variables.root & "results/browser/run.png", { fullPage: true } )
     page.click( "button[data-bs-title='Run All (Ctrl/Cmd + Enter)']" )
@@ -43,6 +49,6 @@ try {
     nativePage.waitForFunction( "() => !Alpine.$data(document.querySelector('[x-data]')).isRunning" )
     cancelled = JSONDeserialize( JSONSerialize( page.evaluate( "() => Alpine.$data(document.querySelector('[x-data]')).workerProgress" ) ) )
     if ( !cancelled.cancelled || errors.len() ) throw( message="Cancellation failed or unexpected browser errors: " & JSONSerialize( errors ) )
-    fileWrite( variables.root & "results/browser/verification.json", JSONSerialize( {base:base, desktop:[1440,1000], mobile:[390,844], run:runData, cancelled:cancelled, errors:errors, upstreamTooltipMessages:upstreamTooltipMessages} ) )
-    println( "PASS: BoxLang browser comparison, JSON download, mobile, native RUN 32/32 on two workers and cancellation" )
+    fileWrite( variables.root & "results/browser/" & (longMode ? "long-verification.json" : "verification.json"), JSONSerialize( {base:base, delayMs:longMode ? 10000 : 300, desktop:[1440,1000], mobile:[390,844], run:runData, cancelled:cancelled, errors:errors, upstreamTooltipMessages:upstreamTooltipMessages} ) )
+    println( "PASS: native RUN 32/32 and cancellation; " & (longMode ? "long 10-second workload/four workers" : "quick comparison, JSON download, desktop/mobile and two workers") )
 } finally { manager.close() }

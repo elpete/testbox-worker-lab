@@ -1,4 +1,5 @@
 <bx:script>
+include "workload.bxs"
 url.directory = "tests.specs"
 url.coverageEnabled = false
 </bx:script>

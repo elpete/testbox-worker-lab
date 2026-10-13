@@ -4,5 +4,5 @@ class {
     this.mappings[ "/testbox" ] = getDirectoryFromPath( getCurrentTemplatePath() ) & ".deps/testbox"
     this.mappings[ "/tests" ] = getDirectoryFromPath( getCurrentTemplatePath() ) & "tests"
     this.mappings[ "/app" ] = getDirectoryFromPath( getCurrentTemplatePath() ) & "app"
-    this.requestTimeout = createTimeSpan( 0, 0, 10, 0 )
+    this.requestTimeout = createTimeSpan( 0, 0, 20, 0 )
 }

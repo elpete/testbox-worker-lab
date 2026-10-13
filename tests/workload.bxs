@@ -1,0 +1,4 @@
+/** A per-run synthetic wait, identical for serial, workers and shards. */
+delay = url.keyExists( "demoDelayMs" ) ? url.demoDelayMs : getSystemSetting( "PARCEL_DELAY_MS", "10000" )
+if ( !isNumeric( delay ) || delay != int( delay ) || delay < 0 || delay > 30000 ) throw( message="demoDelayMs must be an integer from 0 to 30000" )
+request.parcelDelayMs = int( delay )
