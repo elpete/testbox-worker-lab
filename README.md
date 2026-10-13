@@ -1,98 +1,99 @@
 # TestBox Worker Lab
 
-A runnable, original Parcel Dispatch application that shows Eric Peterson’s TestBox parallel-worker work through **TestBox RUN, the CommandBox CLI, and GitHub Actions**. Eight bundles exercise 32 real assertions: parcel quotes, express pricing, weight/destination validation, and receipt files. Each spec pauses for 300 ms so a presenter can follow progress. This is an intentionally paced demonstration, not a production benchmark.
+An original Parcel Dispatch application showing Eric Peterson’s parallel-worker work through **TestBox RUN, CommandBox CLI and GitHub Actions**. Eight bundles contain 32 real tests for quotes, express pricing, guards and manifest files. A configurable 300 ms pause per spec makes progress visible; this is a demonstration, not a production speedup benchmark.
 
-## Prerelease dependencies
+All authored application and executable tooling code is **BoxLang**. The browser presentation uses HTML/CSS/JavaScript. There are no Python files, Python prerequisites, Bash wrapper scripts, npm package files or Node-authored verification scripts. The original four Python tools and three shell wrappers have been replaced by `scripts/Lab.bx` and `scripts/lab.bxs`; browser verification is `scripts/browser.bxs`. The worker provider is native `ProcessProvider.bx`.
 
-**TestBox 7.2.0 does not contain the draft worker APIs.** This project checks out development source, never installs the released framework as a substitute. The source package may display `7.2.0` or `@build.version@`; the Git commit establishes identity.
+## Bootstrap once
 
-| Dependency                                                                       | Exact identity                                                                                  |
-| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| [TestBox PR217](https://github.com/Ortus-Solutions/TestBox/pull/217)             | `a197c61faa9a5d7b104b32a95cd8c266c9270979`                                                      |
-| [TestBox CLI PR28](https://github.com/Ortus-Solutions/testbox-cli/pull/28)       | `4e06f5c155302f9cce434886703cc2310cff6890`                                                      |
-| [Runner completion PR27](https://github.com/Ortus-Solutions/testbox-cli/pull/27) | `a5a4c072a3366aafa720d79b53fd50aaaeaf95ee`, independent merged PR; not included in this CLI pin |
-| BoxLang core / servlet                                                           | `1.18.0+66` / `1.18.6+62`                                                                       |
-| CFML compatibility module                                                        | `1.37.0`                                                                                        |
-| CommandBox / BoxLang module                                                      | `6.3.5` / `1.22.0`                                                                              |
-
-`dependencies.json` pins source commits and SHA-256 checksums for binary/module archives, including TestBox’s Globber, CBStreams, CBProxies and CBMockData dependencies. The servlet has a separate version from the core. The official servlet archive contains the same core build used by the workers. Java 21 is required; CI uses Temurin 21.0.10. macOS/Linux are the supported setup platforms.
-
-## Setup and local demo
-
-Prerequisites: Java 21, Git, Python 3, internet access. Node is only needed for optional browser QA. No database, paid service, credentials, or global CommandBox module installation is needed.
+Prerequisites: **Java 21, Git and curl**, on macOS/Linux. If BoxLang is not installed, a BoxLang script cannot download its own runtime before it starts. This unavoidable first download is an official pinned JAR; the repository contains no bootstrap program in another scripting language.
 
 ```sh
 git clone https://github.com/elpete/testbox-worker-lab.git
 cd testbox-worker-lab
-python3 scripts/setup.py
-scripts/start
+mkdir -p .bootstrap
+curl --fail --location https://downloads.ortussolutions.com/ortussolutions/boxlang/1.18.0/boxlang-1.18.0.jar --output .bootstrap/boxlang.jar
 ```
 
-Open **http://127.0.0.1:8642/** for the comparison page, or **http://127.0.0.1:8642/tests/runner.parallel.bxm** for the native RUN IDE. In RUN, select Workers and Run All. The comparison page runs the standard serial endpoint followed by real isolated workers; Download JSON preserves measured reports. Blank cells stay blank until execution completes.
-
-Use the supplied `scripts/box` wrapper for the pinned CLI. It passes every argument directly to the genuine CommandBox executable in the project’s private home. Commands written as `box testbox …` in the upstream PRs become `scripts/box testbox …` here. **Do not install these draft modules into your normal `~/.CommandBox`.**
+Before executing it, compare its SHA-256 with `f9908fc0f2b699e8ed28c577b25bbf475f17dc14181bea1cf7f3672126f40379` (`shasum -a 256` on macOS or `sha256sum` on Linux). CI checks this automatically. All subsequent setup logic runs in BoxLang:
 
 ```sh
-scripts/box testbox run runner=serial outputFile=results/serial.json
-scripts/box testbox run runner=parallel workers=2 interactive=false outputFile=results/parallel-2.json
-scripts/box testbox run runner=parallel workers=4 interactive=false outputFile=results/parallel-4.json
-python3 scripts/check-results.py results/parallel-4.json
-scripts/box server stop
+java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs setup
+java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs start --console
 ```
 
-Omit `interactive=false` in a supported interactive terminal to see redrawn worker rows. The permanent log output is verified locally and used in CI; visual behavior of terminal animation is not claimed by browser QA. PR27 adds named-runner completion independently; this demo pins PR28 for the worker/shard APIs and does not claim PR27 completion in that checkout.
+Keep the console terminal open; use a second terminal for commands below. Open **http://127.0.0.1:8642/** for comparison or **http://127.0.0.1:8642/tests/runner.parallel.bxm** for native RUN. In RUN choose Workers, then Run All. The comparison runs a standard serial baseline followed by real workers and can download measured JSON.
 
-`PARCEL_DELAY_MS` controls the deliberate pause, read by both the serial app and child workers. Change the `server.json` environment value and restart to compare another workload. Use `0` for fast correctness checks. Keep the same value for every comparison/shard. Startup, compilation and cleanup can outweigh the useful work: four workers are not guaranteed to beat two or serial. Eight workers can consume over 2 GB of heap plus native overhead; choose according to available memory.
-
-## Local CI-shard rehearsal
-
-Start the server, use a fresh directory, and give every shard the same run identity:
+For a conventional background server, omit `--console`. Stop only this project’s server:
 
 ```sh
-scripts/box testbox run runner=serial shard=1/2 shardRunId=local-demo outputFile=results/shards/one.json
-scripts/box testbox run runner=serial shard=2/2 shardRunId=local-demo outputFile=results/shards/two.json
-scripts/box testbox merge directory=results/shards outputFile=results/combined.json
-python3 scripts/check-results.py results/combined.json
-python3 scripts/verify-merge.py
-scripts/test-contracts
+java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs stop
 ```
 
-The contract harness also runs a deliberately failing fixture outside the application suite and confirms its failure survives native merge. The real merge command rejects missing, duplicate and mixed-run reports. Keep unrelated JSON out of the input directory. Retried jobs need a fresh identity and directory. Failing assertions remain failed in the combined report. Combined test duration is the **longest shard’s test duration**, not GitHub workflow wall time.
+With BoxLang 1.18.0 already installed, `boxlang --bx-home .runtime/tooling scripts/lab.bxs ...` is equivalent. The pinned-JAR form avoids relying on a globally installed runtime version.
 
-## GitHub Actions
+## Actual CommandBox CLI
 
-[`.github/workflows/demo.yml`](.github/workflows/demo.yml) runs automatically on main pushes and supports manual dispatch. It uses immutable Actions commits and read-only repository permissions.
-
-- `workers`: serial, two/four isolated JVMs, coverage/count checks, the comparison page and native RUN browser checks.
-- `shards`: four distinct Ubuntu jobs with their own application setup and `shard=1/4` through `4/4`.
-- `merge`: runs even when a shard fails; downloads **every** report, executes native `testbox merge`, checks all 32 assertions/eight exact bundles, and tests merge rejection safeguards. It needs no application server.
-
-Every shard uploads results with `if: always()` and missing-file failure. The shared identity includes GitHub run ID, attempt and source SHA. Worker/browser evidence and combined JSON are downloadable artifacts. CI never deploys the site. See [verification](docs/verification.md) for observed results, not just configured jobs.
-
-## How isolation works
-
-`tests/runner.parallel.bxm` is a small wrapper around the actual TestBox `Runner`. The application-owned `ProcessProvider.cfc` implements the native lifecycle: prepare, start, poll, stop, finish. It starts **one real BoxLang JVM per assigned batch**, each with a private BoxLang home, module copy and `java.io.tmpdir`. Each bundle also owns a UUID scratch directory and cleans it after assertions. Tests neither share mutable application scopes nor write into a common manifest.
-
-The child executes TestBox `runRaw()` with assigned bundles and native filters. `ProgressFile` writes real TestBox callback events to JSONL; the provider forwards them to the coordinator. Reports are genuine `TestResult.getMemento()` results. The coordinator verifies exact bundle coverage and streams the combined report through RUN/CLI/the comparison page.
-
-Stopping signals every owned JVM first, waits against one 30-second grace deadline, force-stops remaining owned processes, then verifies process exit and removes homes/workspaces. Small diagnostic `cleanup.json`, progress, selection, process logs and results remain in the TestBox temporary evidence root. The provider never stops other application processes. Close the stream only after the cancellation result; a disconnected stream is not confirmed cleanup.
-
-This isolation boundary fits this file-based demo. A database-backed application would also need separate databases/schemas and its other mutable services. It is not a general environment manager for arbitrary applications.
-
-## Presenter walkthrough and browser checks
-
-[Five-minute presenter guide](docs/presenter.md) includes a two-person handoff for Eric and Luis. [Verification notes](docs/verification.md) distinguish local, browser and hosted evidence.
-
-Optional browser QA:
+The `cli` action forwards an argument array to the genuine pinned CommandBox executable in this checkout’s private home. It preserves failing exit codes and never installs draft modules into `~/.CommandBox`.
 
 ```sh
-npm ci
-npx playwright install chromium
-npm run test:browser
+java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs cli testbox run runner=serial outputFile=results/serial.json
+java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs cli testbox run runner=parallel workers=2 interactive=false outputFile=results/parallel-2.json
+java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs cli testbox run runner=parallel workers=4 interactive=false outputFile=results/parallel-4.json
+java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs verify-report results/parallel-4.json
 ```
 
-The browser test exercises the comparison button, downloaded real JSON, mobile overflow, native RUN’s two-worker execution and Stop. It saves screenshots and receipts under ignored `results/browser/`. One upstream Bootstrap tooltip message (`Please use show on visible elements`) is explicitly recorded; unexpected console errors fail QA.
+Omit `interactive=false` in a supported interactive terminal for redrawn rows. The permanent log mode and native timing table are verified. A single short run does not establish a generalized speedup. Set `PARCEL_DELAY_MS` in `server.json`, restart, and keep the same value across comparisons; use `0` for fast correctness checks.
 
-Limitations: proposed APIs can change; no coverage recording merge; no `workers` plus `shard` combination; scheduling is at bundle level with no work stealing. This demo is BoxLang-only. Adobe/Lucee worker behavior and hosted speedup claims are outside its evidence.
+`lab.bxs smoke` runs all serial/two/four-worker and local HTTP-shard/merge checks with the launcher prefix. `lab.bxs audit` guards the authored BoxLang source boundary in CI.
 
-License: MIT for original demo code. Fetched dependencies retain their own licenses. No upstream source or private application code is vendored in this repository.
+## Local shard and merge rehearsal
+
+Use a fresh report directory and shared run identity. CI uses the same API across four separate machines.
+
+```sh
+java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs cli testbox run runner=serial shard=1/2 shardRunId=local-demo outputFile=results/shards/one.json
+java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs cli testbox run runner=serial shard=2/2 shardRunId=local-demo outputFile=results/shards/two.json
+java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs cli testbox merge directory=results/shards outputFile=results/combined.json
+java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs verify-report results/combined.json
+java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs verify-merge
+java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs contracts
+```
+
+Missing, duplicate and mixed-run reports fail native merge. The contract runs a real failing fixture outside application discovery and confirms failure survives merge. Combined duration is the longest shard’s test duration, **not workflow wall time**. Retry with a fresh identity and directory; keep unrelated JSON out of merge inputs.
+
+## Native BoxLang browser QA
+
+```sh
+java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs browser-setup
+java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs browser
+```
+
+The content-pinned public `bx-playwright` module exposes Playwright’s Java browser API to BoxLang. Its private cache installs Chromium and the vendor Playwright driver; the driver internally uses Node, downloaded/managed by the module. Node/npm are not user prerequisites and no authored tooling runs through Node. Linux provisioning may request elevated access to install Chromium system libraries.
+
+The module’s snapshot archive is pinned by S3 object version and SHA-256, so an updated snapshot cannot silently replace it. Browser modules/caches stay out of worker JVM homes. The BoxLang check exercises comparison, real JSON download, desktop/mobile, native RUN at two workers and Stop; screenshots and receipts go under ignored `results/browser/`. The exact upstream tooltip exception `Please use show on visible elements` is recorded separately; unexpected errors fail verification.
+
+## Prerelease pins and isolation
+
+**Released TestBox 7.2.0 does not contain these draft APIs.** Source package version labels are not proof of identity. `dependencies.json` pins:
+
+| Dependency | Identity |
+| --- | --- |
+| [TestBox PR217](https://github.com/Ortus-Solutions/TestBox/pull/217) | `a197c61faa9a5d7b104b32a95cd8c266c9270979` |
+| [CLI PR28](https://github.com/Ortus-Solutions/testbox-cli/pull/28) | `4e06f5c155302f9cce434886703cc2310cff6890` |
+| [Completion PR27](https://github.com/Ortus-Solutions/testbox-cli/pull/27) | Independent merged work; not included in the CLI pin |
+| BoxLang core / servlet | `1.18.0+66` / `1.18.6+62` |
+| CFML compatibility module | `1.37.0` |
+| CommandBox / BoxLang module | `6.3.5` / `1.22.0` |
+
+Binary archives and nested TestBox modules are checksummed. TestBox/CommandBox contain third-party CFML internally; they are fetched into ignored dependency directories, not authored or vendored in this repository. No private application code or secrets are included.
+
+`ProcessProvider.bx` starts one real BoxLang JVM per assigned batch, with private application state, runtime home and `java.io.tmpdir`. Bundles own UUID scratch directories. Native `ProgressFile` callbacks supply events; genuine `runRaw().getMemento()` results go to the coordinator, which checks exact bundle coverage. Cancellation signals all owned processes, waits against one 30-second deadline, escalates remaining owned JVMs, confirms exit and removes scratch resources. Small diagnostic receipts remain in TestBox temporary storage.
+
+A database-backed application would also need isolated databases/services. This file-based provider is not a general environment manager. Coverage recordings are not merged; `workers` and `shard` cannot be combined; scheduling is at bundle level. This demo is BoxLang-only and makes no Adobe/Lucee compatibility claim.
+
+## CI and presentation
+
+[The workflow](.github/workflows/demo.yml) uses immutable Actions commits, Ubuntu 24.04, Temurin 21.0.10 and read-only permissions. Its only pre-BoxLang steps download/check the runtime JAR. BoxLang handles setup, readiness, CLI forwarding, results, negative merge contracts and browser QA. Four shard jobs upload reports even on failure; an always-running merge verifies the complete selection. No deployment is configured.
+
+[Presenter walkthrough](docs/presenter.md) · [Verification scope](docs/verification.md). The latest exact-commit CI result is linked in the final handoff. Original demo code is MIT; fetched dependencies retain their own licenses.

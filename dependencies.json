@@ -50,6 +50,11 @@
       "sha256": "e81d96a4bdcd2b692f2066f635691a66333f7a55a5582d4207b5d91f6f9fcf20"
     }
   },
+  "browserModule": {
+    "version": "1.0.0-snapshot",
+    "url": "https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang-modules/bx-playwright/1.0.0-snapshot/bx-playwright-1.0.0-snapshot.zip?versionId=rUcVfl9NPgLk3iKF3Iz8TpH3si8fU1Fh",
+    "sha256": "4d8af36d31782226ade3b922a2ae188b1fe8403639260ac149bbdf57b8a378ed"
+  },
   "commandboxModule": {
     "version": "1.22.0",
     "url": "https://downloads.ortussolutions.com/ortussolutions/commandbox-modules/commandbox-boxlang/1.22.0/commandbox-boxlang-1.22.0.zip",

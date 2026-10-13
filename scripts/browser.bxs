@@ -1,0 +1,48 @@
+/** Browser QA authored in BoxLang; Java Playwright is exposed by bx-playwright. */
+ensureDirectory( variables.root & "results/browser" )
+manager = playwright( { headless: true, home: variables.root & ".runtime/playwright", viewport: { width: 1440, height: 1000 }, timeouts: { navigation: 120000, action: 120000 } } )
+try {
+    page = manager.newPage()
+    nativePage = page.getJava()
+    errors = []
+    upstreamTooltipMessages = []
+    nativePage.onPageError( message => {
+        if ( message == "Please use show on visible elements" || ( message.startsWith( "Error: Please use show on visible elements" ) && find( "js/vendor/bootstrap.bundle.min.js", message ) ) ) upstreamTooltipMessages.append( message )
+        else errors.append( message )
+    } )
+    nativePage.onConsoleMessage( message => {
+        if ( message.type() == "error" ) {
+            if ( message.text() == "Please use show on visible elements" ) upstreamTooltipMessages.append( message.text() )
+            else errors.append( message.text() )
+        }
+    } )
+    base = getSystemSetting( "DEMO_URL", "http://127.0.0.1:8642" )
+    page.visit( base )
+    if ( nativePage.title() != "Worker Lab · Parcel Dispatch" ) throw( message="Wrong comparison page" )
+    page.assertSee( "One workload." ).click( "##run" )
+    nativePage.waitForFunction( "() => document.querySelector('##status').textContent.startsWith('Complete.')" )
+    page.assertText( "##serial-pass", "32/32" ).assertText( "##parallel-pass", "32/32" ).assertCount( ".worker", 4 )
+    page.waitForDownload( () => page.click( "##export" ), variables.root & "results/browser/comparison.json" )
+    page.screenshot( variables.root & "results/browser/desktop.png", { fullPage: true } )
+    nativePage.setViewportSize( 390, 844 )
+    if ( page.evaluate( "document.documentElement.scrollWidth > innerWidth" ) ) throw( message="Mobile horizontal overflow" )
+    page.screenshot( variables.root & "results/browser/mobile.png", { fullPage: true } )
+    nativePage.setViewportSize( 1440, 1000 )
+    page.visit( base & "/tests/runner.parallel.bxm" )
+    if ( nativePage.title() != "TestBox Run IDE" ) throw( message="Wrong native RUN page" )
+    nativePage.waitForFunction( "() => document.body.innerText.includes('32 specs')" )
+    page.fill( "##workerCount", "2" ).click( "button[data-bs-title='Run All (Ctrl/Cmd + Enter)']" )
+    nativePage.waitForFunction( "() => { const x = Alpine.$data(document.querySelector('[x-data]')); return !x.isRunning && x.metaGlobalStats.totalPass === 32; }" )
+    runData = JSONDeserialize( JSONSerialize( page.evaluate( "() => { const x = Alpine.$data(document.querySelector('[x-data]')); return {stats:x.metaGlobalStats,progress:x.workerProgress}; }" ) ) )
+    if ( runData.stats.totalFail != 0 || runData.stats.totalError != 0 || runData.progress.workers.len() != 2 ) throw( message="RUN execution failed" )
+    for ( worker in runData.progress.workers ) if ( worker.state != "completed" ) throw( message="RUN worker incomplete" )
+    page.screenshot( variables.root & "results/browser/run.png", { fullPage: true } )
+    page.click( "button[data-bs-title='Run All (Ctrl/Cmd + Enter)']" )
+    nativePage.waitForFunction( "() => Alpine.$data(document.querySelector('[x-data]')).isRunning" )
+    page.click( "button[aria-label='Stop tests']:visible" )
+    nativePage.waitForFunction( "() => !Alpine.$data(document.querySelector('[x-data]')).isRunning" )
+    cancelled = JSONDeserialize( JSONSerialize( page.evaluate( "() => Alpine.$data(document.querySelector('[x-data]')).workerProgress" ) ) )
+    if ( !cancelled.cancelled || errors.len() ) throw( message="Cancellation failed or unexpected browser errors: " & JSONSerialize( errors ) )
+    fileWrite( variables.root & "results/browser/verification.json", JSONSerialize( {base:base, desktop:[1440,1000], mobile:[390,844], run:runData, cancelled:cancelled, errors:errors, upstreamTooltipMessages:upstreamTooltipMessages} ) )
+    println( "PASS: BoxLang browser comparison, JSON download, mobile, native RUN 32/32 on two workers and cancellation" )
+} finally { manager.close() }

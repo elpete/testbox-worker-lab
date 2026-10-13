@@ -1,5 +1,5 @@
 /** A real child JVM per worker. No HTTP requests or simulated reports. */
-component extends="testbox.system.parallel.WorkerProvider" {
+class extends="testbox.system.parallel.WorkerProvider" {
     function prepareRun( required struct context ) {
         variables.root = expandPath( "/" )
         variables.handles = []
@@ -12,7 +12,7 @@ component extends="testbox.system.parallel.WorkerProvider" {
         variables.ownedDirectories.append( dir )
         directoryCreate( dir, true )
         directoryCreate( dir & "/workspace", true )
-        fileWrite( dir & "/selection.json", serializeJSON( {bundles:context.bundles, filters:context.run.filters} ) )
+        fileWrite( dir & "/selection.json", JSONSerialize( {bundles:context.bundles, filters:context.run.filters} ) )
         var home = dir & "/home"
         directoryCreate( home, true )
         directoryCopy( variables.root & ".runtime/boxlang/modules", home & "/modules", true )
@@ -37,17 +37,17 @@ component extends="testbox.system.parallel.WorkerProvider" {
     struct function pollWorker( required struct worker ) {
         var events = []
         if ( fileExists( worker.dir & "/progress.jsonl" ) ) {
-            var lines = listToArray( fileRead( worker.dir & "/progress.jsonl" ), chr(10) )
+            var lines = listToArray( fileRead( worker.dir & "/progress.jsonl" ), char(10) )
             while ( worker.cursor < lines.len() && isJSON( lines[ worker.cursor + 1 ] ) ) {
                 worker.cursor++
-                events.append( deserializeJSON( lines[ worker.cursor ] ) )
+                events.append( JSONDeserialize( lines[ worker.cursor ] ) )
             }
         }
         if ( worker.process.isAlive() ) return {events:events, done:false}
         if ( worker.process.exitValue() != 0 || !fileExists( worker.dir & "/result.json" ) ) {
             throw( type="Parcel.WorkerFailed", message="Child JVM failed; inspect " & worker.dir & "/process.log" )
         }
-        return {events:events, done:true, result:{complete:true, report:deserializeJSON( fileRead( worker.dir & "/result.json" ) ), seconds:(getTickCount()-worker.started)/1000}}
+        return {events:events, done:true, result:{complete:true, report:JSONDeserialize( fileRead( worker.dir & "/result.json" ) ), seconds:(getTickCount()-worker.started)/1000}}
     }
     function stopWorker( required struct worker ) {
         if ( worker.process.isAlive() ) worker.process.destroy()
@@ -56,7 +56,7 @@ component extends="testbox.system.parallel.WorkerProvider" {
         if ( worker.process.isAlive() ) throw( message="Owned child JVM did not stop." )
         if ( directoryExists( worker.dir & "/home" ) ) directoryDelete( worker.dir & "/home", true )
         if ( directoryExists( worker.dir & "/workspace" ) ) directoryDelete( worker.dir & "/workspace", true )
-        fileWrite( worker.dir & "/cleanup.json", serializeJSON( {pid:worker.process.pid(), stopped:true, homeRemoved:true, workspaceRemoved:true} ) )
+        fileWrite( worker.dir & "/cleanup.json", JSONSerialize( {pid:worker.process.pid(), stopped:true, homeRemoved:true, workspaceRemoved:true} ) )
     }
     function finishRun( required struct context ) {
         for ( var dir in variables.ownedDirectories ?: [] ) {

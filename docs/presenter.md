@@ -1,12 +1,12 @@
-# A five-minute demo with Eric and Luis
+# Five-minute demo with Eric and Luis
 
-Prepare once: run `python3 scripts/setup.py`, `scripts/start`, and open the local homepage and RUN in separate tabs. Have a completed Actions run and combined artifact open. Stop unrelated heavy workloads if comparing times. Test the projector’s terminal mode; `interactive=false` produces durable lines.
+Prepare with the README’s pinned-JAR bootstrap, then run `lab.bxs setup` and `lab.bxs start --console`. Keep a second terminal and the latest passing Actions run open. The launcher prefix for every command is `java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs`.
 
-1. **Luis introduces the workload (30 seconds).** “This tiny parcel dispatcher prices shipments and writes manifests. Eight bundles have 32 real checks. Deliberate pauses make execution visible. We are showing coordination and correctness, not promising linear speedup.”
-2. **Eric shows RUN (one minute).** Open `/tests/runner.parallel.bxm`. Point to eight discovered bundles and 32 specs. Choose two Workers, then Run All. Watch preparation/discovery, interleaved execution, 16 passes in each worker, and retained completed rows. Open a spec to show its actual quote/file assertion. A targeted bundle uses one worker regardless of the requested maximum.
-3. **Luis compares (one minute).** On the homepage choose four workers and Run comparison. It runs standard serial then four child JVMs with the same workload. Both must show 32/32. Discuss setup cost, compilation, and the slowest bundle; Download JSON preserves the reports. Do not present a single short run as a generalized benchmark.
-4. **Eric moves to CLI (one minute).** `scripts/box testbox run runner=parallel workers=4 interactive=false`. Highlight native bundle/spec events, permanent per-worker lines, final counts and native timing table. For an interactive terminal, rerun without the override. “The app provider owns environments; TestBox owns assignment, progress and result validation.”
-5. **Luis closes with CI (one minute).** Open `shards (1)` through `(4)` in the completed GitHub Actions run. Each job starts its own app and takes one deterministic batch. Open `merge` and the combined JSON artifact: 32 passes/eight bundles. Explain the run ID/attempt/SHA, `if: always()` report upload, and why missing/duplicate/mixed-run reports fail instead of producing a passing subset.
-6. **Optional Stop demonstration (30 seconds).** In RUN, start two workers and click Stop during startup. Wait for final cleanup status; worker progress stays visible. Cancellation means incomplete execution. The provider only stops its owned child JVMs.
+1. **Luis introduces the workload.** Eight parcel bundles, 32 real tests, deliberate pauses to make progress visible. No linear-speedup promise.
+2. **Eric shows RUN.** Open `/tests/runner.parallel.bxm`, choose two Workers, Run All. Point to preparation, discovery, interleaved specs and retained final rows. A targeted bundle uses one worker.
+3. **Luis compares.** The homepage runs standard serial and four real worker JVMs. Both must show 32/32. Discuss startup and compilation costs; download actual JSON.
+4. **Eric uses the CLI.** Run `lab.bxs cli testbox run runner=parallel workers=4 interactive=false` with the launcher prefix. Highlight native bundle progress and timing table. The BoxLang wrapper invokes actual CommandBox in a private home.
+5. **Luis finishes in CI.** Show four independent shard jobs, the merge job and combined artifact. Explain the shared run/attempt/SHA identity and why missing, duplicate or mixed-run reports cannot pass.
+6. **Optional Stop.** Start two workers in RUN, stop during startup and wait for confirmed cleanup. Cancellation means incomplete execution.
 
-Afterward: `scripts/box server stop`. Diagnostic reports remain in ignored results/temp storage. This repository and the prerelease pins are safe to share; it contains only original demo code and public upstream references.
+Afterward run `lab.bxs stop` with the launcher prefix. All authored setup, lifecycle, verification, provider and browser code is BoxLang. Only the official runtime’s first download happens before BoxLang can execute; vendor Playwright internally manages its driver runtime.

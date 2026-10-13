@@ -140,7 +140,7 @@
               Watch permanent progress lines, then inspect the worker timing
               table.
             </p>
-            <code>scripts/box testbox run runner=parallel workers=4</code>
+            <code>java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs cli testbox run runner=parallel workers=4</code>
           </div>
         </article>
         <article>
@@ -151,7 +151,7 @@
               Four independent machines. Upload every report and verify the
               complete selection.
             </p>
-            <code>scripts/box testbox run runner=serial shard=1/4</code
+            <code>java -jar .bootstrap/boxlang.jar --bx-home .runtime/tooling scripts/lab.bxs cli testbox run runner=serial shard=1/4</code
             ><a
               class="path-link"
               href="https://github.com/elpete/testbox-worker-lab/actions"
