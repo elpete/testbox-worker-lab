@@ -21,7 +21,7 @@ box server start
 
 Keep the checkout-local `COMMANDBOX_HOME` and initial `BOXLANG_HOME` set in every terminal used for this demo. They isolate the draft TestBox CLI, server registry and pre-server tooling runtime. A new terminal needs the same exports after changing into the checkout.
 
-`box install` reads the exact development Git commits and pinned modules in `box.json`. `box run-script setup` uses the official `boxlang cli` bridge to run the BoxLang setup: verifies critical framework/CLI source hashes and the worker-runtime checksum, links the local TestBox mapping, and prepares private worker/tooling homes. It invokes your **installed** `box` executable, not a repository-downloaded CommandBox binary.
+`box install` reads the exact development Git commits and pinned modules in `box.json`; the supported `box-lock.json` also fixes nested ForgeBox versions before upstream dependency ranges are resolved. The lock file's TestBox version labels do not replace the exact Git source pins. `box run-script setup` uses the official `boxlang cli` bridge to run the BoxLang setup: verifies critical framework/CLI source hashes and the worker-runtime checksum, links the local TestBox mapping, and prepares private worker/tooling homes. It invokes your **installed** `box` executable, not a repository-downloaded CommandBox binary.
 
 Open **http://127.0.0.1:8642/** for comparison or **http://127.0.0.1:8642/tests/runner.parallel.bxm** for native RUN. In RUN choose Workers and Run All. The comparison page runs standard serial then real isolated workers and downloads measured JSON.
 

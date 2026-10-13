@@ -14,4 +14,6 @@ The CommandBox correction was rehearsed from a clean checkout-local home on macO
 
 Local installation, repeated setup, freshly recreated server provisioning, source audit, CLI 32/32 runs at serial/two/four workers, two-shard merge and rejection contracts passed. Native browser checks passed comparison/JSON download, desktop/mobile, RUN 32/32 on two workers and cancellation. The server was stopped through CommandBox. CI is verified separately in the final handoff against the published commit.
 
+The first hosted CommandBox run caught a ForgeBox HTTP 408 while an upstream floating nested range selected globber 3.2.0 before the root 3.1.5 pin was installed. The committed CommandBox lock file now fixes that nested selection as well. Installation still requires access to the public package services; genuine missing shard reports correctly prevent merge success.
+
 The final handoff records completed checks and the exact run. Earlier Java/JAR-based commits are historical and do not establish this CommandBox workflow. Reports/screenshots remain under ignored `results/` and in CI artifacts. The exact known Bootstrap tooltip exception is recorded separately. No production service, public deployment, Adobe/Lucee compatibility or controlled performance benchmark is claimed.
